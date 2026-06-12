@@ -7,7 +7,7 @@ const inter = Inter({ subsets: ['latin'], variable: '--font-sans' })
 const mono = JetBrains_Mono({ subsets: ['latin'], variable: '--font-mono' })
 
 export const metadata: Metadata = {
-  title: 'RastogiRaterAI',
+  title: 'Stonky',
   description: 'A colder look at hot stocks.',
 }
 

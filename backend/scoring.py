@@ -1,5 +1,5 @@
 """
-scoring.py — Transparent, category-by-category scoring logic for RastogiRaterAI.
+scoring.py — Transparent, category-by-category scoring logic for Stonky.
 
 Each public function returns a dict containing:
   score        — points awarded

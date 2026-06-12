@@ -4,7 +4,7 @@
 // and writes through this module, and every consumer updates instantly via
 // the change event (plus the browser storage event for other tabs).
 
-import { useEffect, useState, useCallback } from 'react'
+import { useCallback, useSyncExternalStore } from 'react'
 
 export interface WatchlistItem {
   symbol: string
@@ -83,18 +83,39 @@ export function removeFromWatchlist(symbol: string): WatchlistItem[] {
   return items
 }
 
+// Stable-snapshot store for useSyncExternalStore: the same array reference is
+// returned until the underlying JSON actually changes, and the server snapshot
+// is a constant empty list so SSR and the first client paint always match.
+const EMPTY: WatchlistItem[] = []
+let snapshotJson = ''
+let snapshot: WatchlistItem[] = EMPTY
+
+function getSnapshot(): WatchlistItem[] {
+  let raw = ''
+  try {
+    raw = window.localStorage.getItem(KEY) || ''
+  } catch {
+    raw = ''
+  }
+  if (raw !== snapshotJson) {
+    snapshotJson = raw
+    snapshot = read()
+  }
+  return snapshot
+}
+
+function getServerSnapshot(): WatchlistItem[] {
+  return EMPTY
+}
+
 /**
- * The one way components should consume the watchlist. State hydrates after
- * mount (SSR-safe, no hydration mismatch) and stays in sync with every other
- * consumer on the page and in other tabs.
+ * The one way components should consume the watchlist. Backed by
+ * useSyncExternalStore over localStorage, so every consumer (drawer, report
+ * button, Discover card) re-renders on every write, with no effect-timing
+ * gaps and no hydration mismatch.
  */
 export function useWatchlist() {
-  const [items, setItems] = useState<WatchlistItem[]>([])
-
-  useEffect(() => {
-    setItems(read())
-    return onWatchlistChange(() => setItems(read()))
-  }, [])
+  const items = useSyncExternalStore(onWatchlistChange, getSnapshot, getServerSnapshot)
 
   const save = useCallback((item: Omit<WatchlistItem, 'addedAt'>) => addToWatchlist(item), [])
   const remove = useCallback((symbol: string) => removeFromWatchlist(symbol), [])

@@ -112,10 +112,11 @@ export function ScoreContext({ data }: { data: RatingResponse }) {
     : ['Holding the current fundamentals would keep the score high.']
 
   return (
-    <section className="mt-16">
-      <p className="eyebrow mb-5" style={{ color: 'var(--accent)' }}>Reading the Score</p>
-
-      <div style={{ background: PANEL, border: '1px solid var(--border-2)', borderRadius: 16, boxShadow: '0 18px 44px rgba(0,0,0,0.4), inset 0 1px 0 rgba(236,231,223,0.04)', padding: 'clamp(1.5rem, 3vw, 2.25rem)', color: INK }}>
+    // A cockpit card: lives in the report's left column under Score DNA so
+    // its bottom lines up with the end of the intelligence rail.
+    <div className="mt-5">
+      <div style={{ background: PANEL, border: '1px solid var(--border-2)', borderRadius: 16, boxShadow: '0 18px 44px rgba(0,0,0,0.4), inset 0 1px 0 rgba(236,231,223,0.04)', padding: 'clamp(1.25rem, 2.6vw, 1.75rem)', color: INK }}>
+        <p className="text-[0.62rem] tracking-[0.18em] uppercase mb-4" style={{ color: 'var(--accent)', fontWeight: 600 }}>Reading the Score</p>
         <ScoreBand score={data.overallScore} />
 
         <div style={{ height: 1, background: 'rgba(236,231,223,0.08)', marginBottom: '1.75rem' }} />
@@ -130,6 +131,6 @@ export function ScoreContext({ data }: { data: RatingResponse }) {
           recommendation to buy, sell, or hold any security.
         </p>
       </div>
-    </section>
+    </div>
   )
 }

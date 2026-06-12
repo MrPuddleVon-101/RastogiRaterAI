@@ -21,7 +21,7 @@ function StaticHero() {
         className="font-bold"
         style={{ color: 'var(--text)', fontSize: 'clamp(2.2rem, 7vw, 4.4rem)', letterSpacing: '-0.03em', lineHeight: 1 }}
       >
-        RastogiRaterAI
+        Stonky
       </span>
       <span aria-hidden style={{ color: 'var(--accent-2)', fontSize: 'clamp(1rem, 2.4vw, 1.4rem)' }}>
         A colder look at hot stocks.
@@ -55,7 +55,7 @@ export function ParticleIntro({ skipIntro = false, children }: ParticleIntroProp
     <div className="relative w-full flex flex-col" style={{ minHeight: '100vh' }}>
       {/* Screen-reader only. Never visible, so the brand is only ever shown by
           the particles assembling it. */}
-      <h1 className="sr-only">RastogiRaterAI. A colder look at hot stocks.</h1>
+      <h1 className="sr-only">Stonky. A colder look at hot stocks.</h1>
 
       {/* Particle stage (upper) */}
       <div className="relative shrink-0" style={{ height: '54vh' }}>
@@ -64,7 +64,7 @@ export function ParticleIntro({ skipIntro = false, children }: ParticleIntroProp
         ) : (
           <ParticleTextEffect
             className="absolute inset-0"
-            title="RastogiRaterAI"
+            title="Stonky"
             tagline="A colder look at hot stocks."
             startAt={skipIntro ? BRAND_LOCK - 0.3 : 0}
             onReady={() => { readyRef.current = true }}

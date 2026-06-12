@@ -1,5 +1,5 @@
 """
-main.py — FastAPI backend for RastogiRaterAI.
+main.py — FastAPI backend for Stonky.
 
 Wraps the existing scoring/data modules and exposes a single endpoint:
   GET /api/rate?ticker=AVGO
@@ -51,7 +51,7 @@ from insights import (
 # App setup
 # ---------------------------------------------------------------------------
 
-app = FastAPI(title="RastogiRaterAI API", version="1.0.0")
+app = FastAPI(title="Stonky API", version="1.0.0")
 
 app.add_middleware(
     CORSMiddleware,
@@ -352,7 +352,7 @@ def _build_earnings_history(extras: dict) -> dict:
 @app.get("/api/rate")
 async def rate_stock(ticker: str = Query(..., min_length=1, max_length=24)):
     """
-    Analyse a stock ticker and return the full RastogiRaterAI scoring payload.
+    Analyse a stock ticker and return the full Stonky scoring payload.
     """
     ticker = ticker.strip().upper()
 
@@ -612,4 +612,4 @@ async def search(q: str = Query(..., min_length=1, max_length=64)):
 
 @app.get("/health")
 async def health():
-    return {"status": "ok", "service": "RastogiRaterAI API"}
+    return {"status": "ok", "service": "Stonky API"}

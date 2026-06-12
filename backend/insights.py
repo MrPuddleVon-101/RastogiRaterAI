@@ -1,5 +1,5 @@
 """
-insights.py - Derived, educational analysis layers for RastogiRaterAI.
+insights.py - Derived, educational analysis layers for Stonky.
 
 These functions take the SAME inputs the scoring/explanation layer already uses
 (the fundamentals `data` dict, the `scores` dict, and `technicals`) and produce

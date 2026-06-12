@@ -175,7 +175,7 @@ function AnalystConsensusCard({ data }: { data: RatingResponse }) {
       )}
 
       <p className="text-[0.64rem] leading-relaxed mt-3 pt-2.5" style={{ color: 'var(--faint)', borderTop: '1px solid var(--border-2)' }}>
-        Third-party analyst data, not a RastogiRaterAI recommendation.
+        Third-party analyst data, not a Stonky recommendation.
       </p>
     </RailCard>
   )

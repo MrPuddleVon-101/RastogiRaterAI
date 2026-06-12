@@ -5,7 +5,7 @@ import { motion, useReducedMotion } from 'motion/react'
 import { cn } from '@/lib/utils'
 
 // Falling market-data rain, adapted from the 21st.dev FallingPattern for the
-// RastogiRaterAI system (Tailwind 3):
+// Stonky system (Tailwind 3):
 //  - invalid `z-1` and `dark:brightness-600` removed
 //  - no backdrop-filter blur (too expensive layered over WebGL waves);
 //    the dot-grid overlay alone gives the ticker-tape texture

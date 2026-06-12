@@ -2,7 +2,7 @@
 import { useEffect, useRef, useState } from 'react'
 
 // A market-signal cursor trail, adapted from the 21st.dev SVG follower.
-// Reworked for RastogiRaterAI:
+// Reworked for Stonky:
 //  - fixed full-viewport overlay, pointer-events: none, never blocks clicks
 //  - listens on window (the overlay itself can never receive events)
 //  - restrained ivory/teal/gold palette, no rainbow, no recording mechanics

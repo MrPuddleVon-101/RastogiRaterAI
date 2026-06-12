@@ -14,6 +14,7 @@ import { DiscoverChamber } from '@/components/DiscoverChamber'
 import { MarketCursorFollower } from '@/components/MarketCursorFollower'
 import { WatchlistControl } from '@/components/WatchlistControl'
 import { StockLogo } from '@/components/StockLogo'
+import { StonkyMark } from '@/components/StonkyMark'
 
 // Graphite cockpit shell: the Discover card uses the SAME dark card system
 // as the report page, so the whole product reads as one terminal.
@@ -231,7 +232,6 @@ export default function DiscoverPage() {
   const [idx, setIdx] = useState(0)
   const [reports, setReports] = useState<Record<string, ReportState>>({})
   const { items: watch, save, has } = useWatchlist()
-  const [exitX, setExitX] = useState(-260)
   const [skippedNote, setSkippedNote] = useState<string | null>(null)
   const fetchingRef = useRef<Set<string>>(new Set())
 
@@ -270,14 +270,15 @@ export default function DiscoverPage() {
     return () => { cancelled = true }
   }, [idx, deck, ensureReport])
 
-  const advance = useCallback((direction: -1 | 1) => {
-    setExitX(direction === 1 ? 260 : -260)
+  // Cards always travel left to right: the current one exits stage right,
+  // the next enters from stage left, like a reveal conveyor.
+  const advance = useCallback(() => {
     setIdx(i => i + 1)
   }, [])
 
   const skip = useCallback(() => {
     setSkippedNote(null)
-    advance(-1)
+    advance()
   }, [advance])
 
   const addCurrent = useCallback(() => {
@@ -288,7 +289,7 @@ export default function DiscoverPage() {
       score: currentReport.overallScore,
       bias: biasLabel(currentReport),
     })
-    advance(1)
+    advance()
   }, [current, currentReport, save, advance])
 
   const deepDive = useCallback((symbol: string) => {
@@ -299,7 +300,7 @@ export default function DiscoverPage() {
   useEffect(() => {
     if (current && currentReport === 'failed') {
       setSkippedNote(`${current.symbol} skipped: data unavailable for this ticker.`)
-      const t = setTimeout(() => advance(-1), 350)
+      const t = setTimeout(() => advance(), 350)
       return () => clearTimeout(t)
     }
   }, [current, currentReport, advance])
@@ -333,8 +334,8 @@ export default function DiscoverPage() {
         >
           <div className="max-w-5xl mx-auto flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <Link href="/" className="font-semibold" style={{ fontSize: '0.95rem', color: 'var(--text)', letterSpacing: '-0.01em' }}>
-                RastogiRaterAI
+              <Link href="/" aria-label="Stonky home">
+                <StonkyMark size={24} />
               </Link>
               <span className="hidden sm:inline text-xs" style={{ color: 'var(--faint)' }}>Discovery Chamber</span>
             </div>
@@ -365,13 +366,13 @@ export default function DiscoverPage() {
           </div>
 
           <div className="relative w-full" style={{ minHeight: 500, perspective: 1300 }}>
-            <AnimatePresence mode="popLayout" custom={exitX}>
+            <AnimatePresence mode="popLayout">
               {current ? (
                 <motion.div
                   key={current.symbol}
-                  initial={reduced ? { opacity: 0 } : { opacity: 0, scale: 0.9, y: 36, rotateX: 9, filter: 'blur(10px)' }}
-                  animate={reduced ? { opacity: 1 } : { opacity: 1, scale: 1, y: 0, x: 0, rotate: 0, rotateX: 0, filter: 'blur(0px)' }}
-                  exit={reduced ? { opacity: 0 } : { opacity: 0, scale: 0.94, y: -26, x: exitX / 3, rotate: exitX > 0 ? 2.5 : -2.5, filter: 'blur(8px)' }}
+                  initial={reduced ? { opacity: 0 } : { opacity: 0, x: -380, scale: 0.92, rotateY: 12, filter: 'blur(10px)' }}
+                  animate={reduced ? { opacity: 1 } : { opacity: 1, x: 0, scale: 1, y: 0, rotate: 0, rotateY: 0, filter: 'blur(0px)' }}
+                  exit={reduced ? { opacity: 0 } : { opacity: 0, x: 420, scale: 0.95, rotateY: -10, filter: 'blur(8px)' }}
                   transition={{ duration: reduced ? 0.2 : 0.65, ease: [0.22, 1, 0.36, 1] }}
                   drag={!reduced && currentReport && currentReport !== 'failed' ? 'x' : false}
                   dragConstraints={{ left: 0, right: 0 }}

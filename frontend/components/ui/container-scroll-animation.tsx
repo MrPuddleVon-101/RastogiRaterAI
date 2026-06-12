@@ -3,7 +3,7 @@ import React, { useRef } from 'react'
 import { useScroll, useTransform, motion, useReducedMotion, MotionValue } from 'motion/react'
 
 // 3D scroll entrance, adapted from the 21st.dev ContainerScroll for the
-// RastogiRaterAI system: dark hybrid frame instead of the gray demo card,
+// Stonky system: dark hybrid frame instead of the gray demo card,
 // tighter runway so desktop is not absurdly tall, auto height content, and
 // a plain render under prefers-reduced-motion.
 

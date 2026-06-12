@@ -1,5 +1,5 @@
 """
-explanations.py — Generates the analyst-style narrative for RastogiRaterAI.
+explanations.py — Generates the analyst-style narrative for Stonky.
 
 Tone: sharp, direct, premium. No generic finance-speak.
 """
@@ -1096,7 +1096,7 @@ def generate_chart_read_text(data: dict, technicals: dict) -> str:
         elif gap <= 0.20:
             parts.append(f"The stock is {gap*100:.0f}% below its 52-week high of ${hi52:.2f} — a modest pullback from the recent peak. Momentum has cooled, but the move down has not been dramatic.")
         elif gap <= 0.30:
-            parts.append(f"At {gap*100:.0f}% below its 52-week high of ${hi52:.2f}, the stock sits in what RastogiRaterAI treats as a structured pullback zone — far enough from the top to allow room, close enough that the longer story has not broken down.")
+            parts.append(f"At {gap*100:.0f}% below its 52-week high of ${hi52:.2f}, the stock sits in what Stonky treats as a structured pullback zone — far enough from the top to allow room, close enough that the longer story has not broken down.")
         elif gap <= 0.50:
             parts.append(f"The stock is {gap*100:.0f}% below its 52-week high of ${hi52:.2f} — a deeper discount. At this level, the model does not automatically treat price weakness as opportunity. The question is whether the fundamentals support a recovery or whether the drawdown reflects real deterioration.")
         else:

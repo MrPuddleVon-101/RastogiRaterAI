@@ -2,7 +2,7 @@
 import { useEffect, useRef } from 'react'
 
 // Cinematic particle wordmark, adapted from the 21st.dev steering-particle
-// effect. Heavily reworked for RastogiRaterAI:
+// effect. Heavily reworked for Stonky:
 //  - deterministic phase timeline instead of frame-count word cycling
 //  - tagline forms first, then dissolves into the brand, which locks forever
 //  - restrained editorial palette (ivory / muted gold / desaturated teal)

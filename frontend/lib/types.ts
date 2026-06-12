@@ -1,5 +1,5 @@
 // ---------------------------------------------------------------------------
-// RastogiRaterAI - TypeScript interfaces for the API response
+// Stonky - TypeScript interfaces for the API response
 // ---------------------------------------------------------------------------
 
 export interface CategoryScore {

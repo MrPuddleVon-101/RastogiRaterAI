@@ -15,11 +15,12 @@ import { ValuationContext } from '@/components/ValuationContext'
 import { ScoreDNA } from '@/components/ScoreDNA'
 import { ScoreContext } from '@/components/ScoreContext'
 import { EvidenceTable } from '@/components/EvidenceTable'
-import { MethodSection } from '@/components/MethodSection'
 import { WatchlistControl } from '@/components/WatchlistControl'
 import { StockMarketStrip } from '@/components/StockMarketStrip'
 import { Disclaimer } from '@/components/Disclaimer'
 import { ReportAura } from '@/components/ReportAura'
+import { StonkyMark } from '@/components/StonkyMark'
+import { Typewriter } from '@/components/ui/typewriter'
 import { MarketCursorFollower } from '@/components/MarketCursorFollower'
 import QuantGridBackground from '@/components/ui/quant-grid-background'
 import SpotlightBackground from '@/components/ui/spotlight-background'
@@ -137,19 +138,22 @@ export default function Home() {
         <div key="landing" className="relative z-20">
           {/* Minimal landing nav, revealed after the intro */}
           <nav
-            className="absolute top-0 left-0 right-0 z-30 flex items-center justify-end gap-5 px-6 py-5 rr-fade-up"
+            className="absolute top-0 left-0 right-0 z-30 flex items-center justify-between px-6 py-5 rr-fade-up"
             style={{ animationDelay: `${navDelay}s` }}
           >
-            <Link
-              href="/discover"
-              className="text-xs tracking-[0.14em] uppercase transition-colors"
-              style={{ color: 'var(--muted)' }}
-              onMouseEnter={e => (e.currentTarget.style.color = 'var(--accent-2)')}
-              onMouseLeave={e => (e.currentTarget.style.color = 'var(--muted)')}
-            >
-              Discover stocks
-            </Link>
-            <WatchlistControl onSelect={handleSubmit} />
+            <StonkyMark size={28} />
+            <div className="flex items-center gap-5">
+              <Link
+                href="/discover"
+                className="text-xs tracking-[0.14em] uppercase transition-colors"
+                style={{ color: 'var(--muted)' }}
+                onMouseEnter={e => (e.currentTarget.style.color = 'var(--accent-2)')}
+                onMouseLeave={e => (e.currentTarget.style.color = 'var(--muted)')}
+              >
+                Discover stocks
+              </Link>
+              <WatchlistControl onSelect={handleSubmit} />
+            </div>
           </nav>
 
           <div className="relative overflow-hidden" style={{ minHeight: '100vh' }}>
@@ -159,6 +163,32 @@ export default function Home() {
               <div style={{ minHeight: '100vh' }} />
             ) : (
               <ParticleIntro skipIntro={introSeen}>
+                {/* Brand line: fixed prefix, rotating finance phrase */}
+                <p
+                  className="text-center mb-8"
+                  style={{ color: 'var(--text-2)', fontSize: 'clamp(1.05rem, 2.2vw, 1.35rem)', fontWeight: 500, letterSpacing: '-0.01em' }}
+                >
+                  Built to{' '}
+                  <span style={{ color: '#5FBF8A' }}>
+                    <Typewriter
+                      text={[
+                        'invest smarter',
+                        'research faster',
+                        'compare clearly',
+                        'discover stocks',
+                        'think colder',
+                        'pressure-test the story',
+                      ]}
+                      speed={62}
+                      waitTime={1800}
+                      deleteSpeed={32}
+                      cursorChar="|"
+                      className="font-semibold"
+                      cursorClassName="ml-0.5"
+                    />
+                  </span>
+                </p>
+
                 {/* Flowing market tape sits above the command bar, in view
                     without scrolling: click a card to run its score */}
                 <div className="mb-9">
@@ -206,12 +236,8 @@ export default function Home() {
           >
             <div className="max-w-5xl mx-auto flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <button
-                  onClick={newSearch}
-                  className="font-semibold"
-                  style={{ fontSize: '0.95rem', color: 'var(--text)', letterSpacing: '-0.01em' }}
-                >
-                  RastogiRaterAI
+                <button onClick={newSearch} aria-label="Stonky home, new search">
+                  <StonkyMark size={24} />
                 </button>
                 <span className="hidden sm:inline text-xs" style={{ color: 'var(--faint)' }}>
                   A colder look at hot stocks.
@@ -273,6 +299,9 @@ export default function Home() {
                         currency={results.currency}
                       />
                       <ScoreDNA data={results} />
+                      {/* Reading the Score fills the left column so its
+                          bottom lines up with Key Risks on the right */}
+                      <ScoreContext data={results} />
                     </Reveal>
                     <Reveal>
                       <IntelligenceRail data={results} />
@@ -280,15 +309,12 @@ export default function Home() {
                   </div>
                 </section>
 
-                {/* 3. Reading the score */}
-                <Reveal><ScoreContext data={results} /></Reveal>
-
-                {/* 4. Valuation detail: fair value model, assumptions, comps */}
+                {/* 3. Valuation detail: fair value model, assumptions, comps */}
                 {results.valuationContext && (
                   <Reveal><ValuationContext vc={results.valuationContext} /></Reveal>
                 )}
 
-                {/* 6. Evidence */}
+                {/* 4. Evidence */}
                 <Reveal>
                   <EvidenceTable
                     metrics={results.metricEvidence}
@@ -298,8 +324,6 @@ export default function Home() {
                   />
                 </Reveal>
 
-                {/* 7. How the Score Works */}
-                <Reveal><MethodSection /></Reveal>
                 <Disclaimer />
               </div>
             )}

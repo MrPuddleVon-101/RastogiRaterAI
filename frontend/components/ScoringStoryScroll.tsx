@@ -135,7 +135,7 @@ export function ScoringStoryScroll() {
         </p>
       </div>
 
-      <FlowArt aria-label="RastogiRaterAI scoring framework">
+      <FlowArt aria-label="Stonky scoring framework">
         {CHAPTERS.map(c => (
           <FlowSection key={c.num} aria-label={`${c.title}, ${c.points} points`}>
             <ChapterCard c={c} />

@@ -23,11 +23,11 @@ METRIC_TOOLTIPS = {
     "total_cash": "Liquid reserves. High cash gives the company options: repay debt, survive downturns, or invest in growth.",
     "debt_to_equity": "Debt as a percentage of equity. 150% = $1.50 owed for every $1 of equity. High leverage amplifies both gains and losses.",
     "current_ratio": "Short-term assets ÷ short-term liabilities. Above 1.0 = near-term obligations covered. Below 1.0 = potential liquidity concern.",
-    "analyst_target_mean": "Average analyst 12-month price target. Implies expected upside or downside. Third-party data — not an RastogiRaterAI forecast.",
+    "analyst_target_mean": "Average analyst 12-month price target. Implies expected upside or downside. Third-party data — not an Stonky forecast.",
     "analyst_count": "Number of analysts covering the stock. More analysts = more reliable consensus. A single target is almost meaningless.",
-    "analyst_recommendation": "Aggregate analyst label from the data provider. Third-party consensus — not RastogiRaterAI's view.",
+    "analyst_recommendation": "Aggregate analyst label from the data provider. Third-party consensus — not Stonky's view.",
     "beta": "Sensitivity to market moves. Beta 1.5 = stock tends to move 1.5× the index. Higher = more volatile in both directions.",
-    "fifty_two_week_high_gap": "Gap from the 52-week high. RastogiRaterAI treats a 20–30% pullback as a structured opportunity zone.",
+    "fifty_two_week_high_gap": "Gap from the 52-week high. Stonky treats a 20–30% pullback as a structured opportunity zone.",
     "fifty_two_week_low_buffer": "Distance above the 52-week low. Low buffer = close to recent lows, potential stress signal.",
     "fifty_day_ma": "Average closing price over the past 50 trading days. Short-term trend indicator.",
     "two_hundred_day_ma": "Average closing price over the past 200 trading days. Long-term trend indicator — widely watched threshold.",
@@ -45,13 +45,13 @@ CATEGORY_EXPLAINERS = {
         "analyst": (
             "Valuation measures whether the market is charging a reasonable price for the company's "
             "earnings, assets, and revenue. Premium pricing can be warranted by superior quality or "
-            "growth — but it compresses the margin of safety. RastogiRaterAI reduces the valuation "
+            "growth — but it compresses the margin of safety. Stonky reduces the valuation "
             "score when multiples are elevated relative to what the underlying numbers support."
         ),
         "beginner": (
             "Think of valuation like the price tag at a restaurant. Even if the food is excellent, "
             "paying $500 for a burger raises the question: is it actually worth that? "
-            "In investing, P/E and P/S ratios are the price tags. RastogiRaterAI checks whether "
+            "In investing, P/E and P/S ratios are the price tags. Stonky checks whether "
             "investors are paying a reasonable price for what the company actually earns and sells."
         ),
     },
@@ -67,7 +67,7 @@ CATEGORY_EXPLAINERS = {
             "Analysts at banks and research firms spend their careers studying specific companies. "
             "Their price targets give a sense of what informed professionals expect. But they are "
             "frequently wrong, often overly optimistic, and regularly revise. "
-            "RastogiRaterAI treats this as one input among many — not a final word."
+            "Stonky treats this as one input among many — not a final word."
         ),
     },
     "profitability": {
@@ -82,7 +82,7 @@ CATEGORY_EXPLAINERS = {
             "Profitability is simple: can the company actually make money? "
             "A business earning huge revenue but spending nearly all of it is fragile. "
             "A business that keeps a healthy portion as profit has more cushion when "
-            "things get harder. RastogiRaterAI rewards businesses that convert sales into real income."
+            "things get harder. Stonky rewards businesses that convert sales into real income."
         ),
     },
     "cashflow": {
@@ -96,7 +96,7 @@ CATEGORY_EXPLAINERS = {
         "beginner": (
             "Imagine someone earning a solid salary but carrying so much credit card debt they can "
             "barely make monthly payments. That is what high debt and weak cash flow looks like for a "
-            "company. RastogiRaterAI checks whether the business generates enough cash to operate "
+            "company. Stonky checks whether the business generates enough cash to operate "
             "independently, and whether the debt load is manageable relative to that cash."
         ),
     },
@@ -111,7 +111,7 @@ CATEGORY_EXPLAINERS = {
         "beginner": (
             "Technical analysis looks at the price chart rather than company finances. "
             "It asks: where is the price compared to its recent high? Is it above or below its "
-            "average price over the last few months? RastogiRaterAI uses these to understand whether "
+            "average price over the last few months? Stonky uses these to understand whether "
             "the stock's price momentum is healthy, cooling, or broken — but does not predict where "
             "the price will go."
         ),
@@ -126,7 +126,7 @@ CATEGORY_EXPLAINERS = {
         ),
         "beginner": (
             "Not every company has all its financial data cleanly available. When numbers are missing, "
-            "RastogiRaterAI scores lower on confidence — essentially saying: 'I can only see part of "
+            "Stonky scores lower on confidence — essentially saying: 'I can only see part of "
             "the picture here.' A 10/10 confidence score means the model had full data to work with. "
             "A 5/10 means the score is based on about half the normal inputs."
         ),
@@ -146,15 +146,15 @@ RICH_TOOLTIPS_BY_DISPLAY = {
     "Trailing P/E": (
         "Price divided by annual earnings per share. A P/E of 30 means you pay $30 for each $1 the company earned last year.<br><br>"
         "High P/E = expensive, usually because investors expect growth. Low P/E = cheaper, or the market doubts future earnings.<br><br>"
-        "RastogiRaterAI penalises extreme P/E values — expensive stocks leave less room for operational disappointment."
+        "Stonky penalises extreme P/E values — expensive stocks leave less room for operational disappointment."
     ),
     "Forward P/E": (
         "Same as trailing P/E but uses analyst estimates of future earnings. A forward P/E meaningfully below trailing P/E suggests analysts expect earnings growth.<br><br>"
-        "RastogiRaterAI treats a significant forward improvement as a minor positive, but does not over-weight analyst estimates."
+        "Stonky treats a significant forward improvement as a minor positive, but does not over-weight analyst estimates."
     ),
     "Price/Book": (
         "Stock price divided by net assets per share. P/B below 1 means the stock trades below its accounting value on paper.<br><br>"
-        "Very high P/B is common in asset-light businesses (software, consumer brands). RastogiRaterAI penalises extreme values but accounts for sector context."
+        "Very high P/B is common in asset-light businesses (software, consumer brands). Stonky penalises extreme values but accounts for sector context."
     ),
     "Price/Sales": (
         "Market cap divided by annual revenue. A P/S of 10 means investors pay $10 for every $1 of revenue.<br><br>"
@@ -162,35 +162,35 @@ RICH_TOOLTIPS_BY_DISPLAY = {
     ),
     "Net Profit Margin": (
         "What percentage of revenue becomes profit after all costs, taxes, and interest. A 20% margin means $0.20 of profit from every $1 of sales.<br><br>"
-        "Above 20% is genuinely strong. Under 5% is thin and vulnerable to cost pressure. RastogiRaterAI rewards high margins heavily — they signal pricing power."
+        "Above 20% is genuinely strong. Under 5% is thin and vulnerable to cost pressure. Stonky rewards high margins heavily — they signal pricing power."
     ),
     "Operating Margin": (
         "Profit from core operations before interest and taxes. Shows how efficient the business model is, separate from how the company is financed.<br><br>"
-        "RastogiRaterAI uses this alongside net margin to check whether profitability is genuine or an accounting artefact."
+        "Stonky uses this alongside net margin to check whether profitability is genuine or an accounting artefact."
     ),
     "Return on Equity": (
         "Annual profit divided by shareholder equity. Measures how efficiently management uses the capital shareholders have put in.<br><br>"
-        "Above 15% is solid. Above 25% often signals a durable competitive advantage. RastogiRaterAI reads ROE alongside debt — high leverage can inflate the figure."
+        "Above 15% is solid. Above 25% often signals a durable competitive advantage. Stonky reads ROE alongside debt — high leverage can inflate the figure."
     ),
     "Return on Assets": (
         "Annual profit divided by total assets. Measures how efficiently the company uses everything it owns to generate earnings.<br><br>"
-        "High ROE can be faked with debt. High ROA is harder to manufacture. RastogiRaterAI uses both together."
+        "High ROE can be faked with debt. High ROA is harder to manufacture. Stonky uses both together."
     ),
     "Free Cash Flow": (
         "Cash left after paying operating costs and capital investments. What remains for debt repayment, reinvestment, or returning to shareholders.<br><br>"
-        "Positive FCF means the business funds itself. Negative FCF means it depends on external financing. RastogiRaterAI treats this as one of the clearest quality signals."
+        "Positive FCF means the business funds itself. Negative FCF means it depends on external financing. Stonky treats this as one of the clearest quality signals."
     ),
     "Operating Cash Flow": (
         "Cash generated from core business operations before capital expenditures. Harder to manipulate than reported earnings.<br><br>"
-        "A company reporting profits but negative operating cash flow warrants scrutiny. RastogiRaterAI uses OCF as a sanity check."
+        "A company reporting profits but negative operating cash flow warrants scrutiny. Stonky uses OCF as a sanity check."
     ),
     "Total Debt": (
         "All money owed by the company — bonds, bank loans, leases. The absolute number means little on its own; it must be read against cash generation.<br><br>"
-        "RastogiRaterAI compares debt against cash and free cash flow to assess whether the load is manageable."
+        "Stonky compares debt against cash and free cash flow to assess whether the load is manageable."
     ),
     "Total Cash": (
         "Liquid assets on hand. High cash gives options: repay debt, survive downturns, invest in growth, or return capital to shareholders.<br><br>"
-        "RastogiRaterAI compares cash against total debt to assess net financial position."
+        "Stonky compares cash against total debt to assess net financial position."
     ),
     "Debt/Equity": (
         "Total debt as a percentage of shareholder equity. Shows how much of the business is funded by borrowed money versus owner capital.<br><br>"
@@ -202,23 +202,23 @@ RICH_TOOLTIPS_BY_DISPLAY = {
     ),
     "Consensus Target": (
         "The average 12-month price target from analysts covering the stock. Implies expected upside or downside from the current price.<br><br>"
-        "This is third-party data — not a RastogiRaterAI forecast or recommendation. Coverage depth matters: 20 analysts is meaningful; 2 is not."
+        "This is third-party data — not a Stonky forecast or recommendation. Coverage depth matters: 20 analysts is meaningful; 2 is not."
     ),
     "Analyst Coverage": (
         "Number of analysts actively providing price targets. More analysts means more diverse views and a more reliable consensus.<br><br>"
-        "RastogiRaterAI reduces the analyst score when coverage is thin — a consensus of 2 is not really a consensus."
+        "Stonky reduces the analyst score when coverage is thin — a consensus of 2 is not really a consensus."
     ),
     "Recommendation": (
         "The aggregate analyst recommendation from data providers: Strong Buy, Buy, Hold, Underperform, Sell.<br><br>"
-        "This is third-party data. RastogiRaterAI does not make buy, sell, or hold recommendations. This label is used as a supporting signal only."
+        "This is third-party data. Stonky does not make buy, sell, or hold recommendations. This label is used as a supporting signal only."
     ),
     "Beta": (
         "Measures how much the stock tends to move relative to the broader market. Beta 1.0 = moves with the market. Beta 1.5 = tends to move 50% more in both directions.<br><br>"
-        "RastogiRaterAI notes beta as context — volatile growth stocks can still be strong businesses."
+        "Stonky notes beta as context — volatile growth stocks can still be strong businesses."
     ),
     "vs 50-Day MA": (
         "The average closing price over the past 50 trading days. A widely watched short-term trend indicator.<br><br>"
-        "Price above the 50-day MA suggests short-term momentum is intact. Price below means it has faded. RastogiRaterAI looks for price above both 50-day and 200-day as a constructive setup."
+        "Price above the 50-day MA suggests short-term momentum is intact. Price below means it has faded. Stonky looks for price above both 50-day and 200-day as a constructive setup."
     ),
     "vs 200-Day MA": (
         "The average closing price over the past 200 trading days (~10 months). The most watched long-term trend indicator — used widely by institutions.<br><br>"
@@ -226,7 +226,7 @@ RICH_TOOLTIPS_BY_DISPLAY = {
     ),
     "52-Week High Gap": (
         "The percentage distance between the current price and the highest price of the past year.<br><br>"
-        "0–10% below: near-peak momentum. 20–30% below: measured pullback — RastogiRaterAI treats this zone as potentially constructive. 50%+ below: significant drawdown that may reflect real deterioration."
+        "0–10% below: near-peak momentum. 20–30% below: measured pullback — Stonky treats this zone as potentially constructive. 50%+ below: significant drawdown that may reflect real deterioration."
     ),
     "52-Week Low Buffer": (
         "How far the current price sits above the lowest price of the past year. Small buffer means the stock is close to its recent worst level.<br><br>"
@@ -234,7 +234,7 @@ RICH_TOOLTIPS_BY_DISPLAY = {
     ),
     "1-Month Return": (
         "Percentage price change over the past ~21 trading days. Captures recent short-term momentum.<br><br>"
-        "RastogiRaterAI uses 1-month return as a minor supporting signal — directional context, not a primary driver."
+        "Stonky uses 1-month return as a minor supporting signal — directional context, not a primary driver."
     ),
 }
 
@@ -432,8 +432,8 @@ GLOSSARY = [
         "abbr": "Target Price",
         "definition": (
             "The price financial analysts believe a stock will reach within 12 months. "
-            "RastogiRaterAI uses the consensus average to calculate implied upside or downside. "
-            "This is third-party data — not an RastogiRaterAI forecast or recommendation."
+            "Stonky uses the consensus average to calculate implied upside or downside. "
+            "This is third-party data — not an Stonky forecast or recommendation."
         ),
         "example": "Stock at $100, consensus target $130 = 30% implied upside.",
     },
@@ -503,7 +503,7 @@ GLOSSARY = [
         "term": "Valuation Score",
         "abbr": "Valuation",
         "definition": (
-            "RastogiRaterAI's composite measure of how expensive the stock is. "
+            "Stonky's composite measure of how expensive the stock is. "
             "Uses P/E, forward P/E, P/B, and P/S ratios. "
             "A great company can still score poorly here if the price leaves no margin for error."
         ),
@@ -513,7 +513,7 @@ GLOSSARY = [
         "term": "Profitability Score",
         "abbr": "Profitability",
         "definition": (
-            "RastogiRaterAI's measure of how efficiently the business converts revenue into income. "
+            "Stonky's measure of how efficiently the business converts revenue into income. "
             "Uses net margin, operating margin, return on equity, and return on assets. "
             "Strong profitability is a sign of pricing power and business resilience."
         ),

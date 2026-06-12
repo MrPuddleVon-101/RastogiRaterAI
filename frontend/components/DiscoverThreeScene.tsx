@@ -3,16 +3,17 @@ import { useRef, useMemo, useEffect, useState } from 'react'
 import { Canvas, useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 
-// The Discover chamber's Three.js stage: a deep starfield, volumetric mist
-// sprites, rising ember particles, and a central aura that morphs toward the
-// active stock's color. Camera drifts slowly; everything eases toward the
-// pointer for parallax. Loaded only on the Discover page, SSR disabled,
-// cleaned up automatically on unmount by react-three-fiber.
+// The Discover chamber's Three.js stage, product-reveal style: a glowing
+// central aura that morphs toward the active stock's color, volumetric mist,
+// and a handful of large soft orbs floating with depth around the card, like
+// objects suspended in the reveal shot. No random dot starfield. Loaded only
+// on the Discover page, SSR disabled, cleaned up by react-three-fiber on
+// unmount.
 
 interface SceneProps {
-  /** Active stock accent; the aura and embers lerp toward it. */
+  /** Active stock accent; the aura and orbs lerp toward it. */
   accent: string
-  /** Lower particle counts and dpr on small screens. */
+  /** Lower orb count and dpr on small screens. */
   quality: 'full' | 'lite'
 }
 
@@ -29,105 +30,87 @@ function makeGlowTexture(): THREE.CanvasTexture {
   return new THREE.CanvasTexture(c)
 }
 
-/** Slowly rotating field of distant ivory stars. */
-function Starfield({ count }: { count: number }) {
-  const ref = useRef<THREE.Points>(null)
-  const positions = useMemo(() => {
-    const arr = new Float32Array(count * 3)
-    for (let i = 0; i < count; i++) {
-      // shell distribution so stars surround the camera with depth
-      const r = 9 + Math.random() * 16
-      const theta = Math.random() * Math.PI * 2
-      const phi = Math.acos(2 * Math.random() - 1)
-      arr[i * 3] = r * Math.sin(phi) * Math.cos(theta)
-      arr[i * 3 + 1] = r * Math.sin(phi) * Math.sin(theta) * 0.6
-      arr[i * 3 + 2] = -Math.abs(r * Math.cos(phi)) - 2
-    }
-    return arr
-  }, [count])
-
-  useFrame((state, delta) => {
-    if (ref.current) {
-      ref.current.rotation.y += delta * 0.008
-      ref.current.rotation.x = Math.sin(state.clock.elapsedTime * 0.03) * 0.015
-    }
-  })
-
-  return (
-    <points ref={ref}>
-      <bufferGeometry>
-        <bufferAttribute attach="attributes-position" args={[positions, 3]} />
-      </bufferGeometry>
-      <pointsMaterial
-        size={0.035}
-        color="#ECE7DF"
-        transparent
-        opacity={0.7}
-        sizeAttenuation
-        depthWrite={false}
-      />
-    </points>
-  )
+interface OrbSeed {
+  base: THREE.Vector3
+  scale: number
+  bobAmp: number
+  bobSpeed: number
+  phase: number
+  driftSpeed: number
+  opacity: number
+  tinted: boolean // accent-tinted orbs shift color with the stock
 }
 
-/** Rising embers tinted by the active stock's accent. */
-function Embers({ count, target }: { count: number; target: THREE.Color }) {
-  const ref = useRef<THREE.Points>(null)
-  const matRef = useRef<THREE.PointsMaterial>(null)
-  const seeds = useMemo(() => {
-    const pos = new Float32Array(count * 3)
-    const speed = new Float32Array(count)
+/**
+ * Large soft orbs drifting with depth around the reveal: the floating-object
+ * energy of a product shot, not a particle field.
+ */
+function FloatingOrbs({ count, target, texture }: { count: number; target: THREE.Color; texture: THREE.Texture }) {
+  const refs = useRef<(THREE.Sprite | null)[]>([])
+  const seeds = useMemo<OrbSeed[]>(() => {
+    const out: OrbSeed[] = []
     for (let i = 0; i < count; i++) {
-      pos[i * 3] = (Math.random() - 0.5) * 10
-      pos[i * 3 + 1] = -3 + Math.random() * 7
-      pos[i * 3 + 2] = -1 - Math.random() * 4
-      speed[i] = 0.08 + Math.random() * 0.22
+      const depth = -1.5 - Math.random() * 5.5
+      out.push({
+        base: new THREE.Vector3(
+          (Math.random() - 0.5) * 11,
+          (Math.random() - 0.5) * 5.5,
+          depth,
+        ),
+        scale: 0.3 + Math.random() * 0.85,
+        bobAmp: 0.25 + Math.random() * 0.5,
+        bobSpeed: 0.12 + Math.random() * 0.22,
+        phase: Math.random() * Math.PI * 2,
+        driftSpeed: (Math.random() - 0.5) * 0.05,
+        opacity: 0.08 + Math.random() * 0.14,
+        tinted: i % 3 !== 2, // two thirds follow the stock's aura color
+      })
     }
-    return { pos, speed }
+    return out
   }, [count])
 
-  useFrame((_, delta) => {
-    const points = ref.current
-    if (!points) return
-    const attr = points.geometry.getAttribute('position') as THREE.BufferAttribute
-    for (let i = 0; i < count; i++) {
-      let y = attr.getY(i) + seeds.speed[i] * delta
-      if (y > 4.2) y = -3.2
-      attr.setY(i, y)
-    }
-    attr.needsUpdate = true
-    if (matRef.current) matRef.current.color.lerp(target, 0.035)
+  useFrame((state) => {
+    const t = state.clock.elapsedTime
+    seeds.forEach((s, i) => {
+      const sprite = refs.current[i]
+      if (!sprite) return
+      sprite.position.x = s.base.x + Math.sin(t * s.driftSpeed * 4 + s.phase) * 0.6
+      sprite.position.y = s.base.y + Math.sin(t * s.bobSpeed + s.phase) * s.bobAmp
+      const mat = sprite.material as THREE.SpriteMaterial
+      if (s.tinted) mat.color.lerp(target, 0.03)
+    })
   })
 
   return (
-    <points ref={ref}>
-      <bufferGeometry>
-        <bufferAttribute attach="attributes-position" args={[seeds.pos, 3]} />
-      </bufferGeometry>
-      <pointsMaterial
-        ref={matRef}
-        size={0.05}
-        color="#5FA8A0"
-        transparent
-        opacity={0.5}
-        sizeAttenuation
-        depthWrite={false}
-        blending={THREE.AdditiveBlending}
-      />
-    </points>
+    <>
+      {seeds.map((s, i) => (
+        <sprite
+          key={i}
+          ref={el => { refs.current[i] = el }}
+          position={s.base}
+          scale={s.scale}
+        >
+          <spriteMaterial
+            map={texture}
+            transparent
+            opacity={s.opacity}
+            depthWrite={false}
+            blending={THREE.AdditiveBlending}
+            color={s.tinted ? '#5FA8A0' : '#ECE7DF'}
+          />
+        </sprite>
+      ))}
+    </>
   )
 }
 
 /** Central aura + volumetric mist sprites, color-morphing per active stock. */
-function Aura({ target, pointer }: { target: THREE.Color; pointer: React.MutableRefObject<{ x: number; y: number }> }) {
-  const texture = useMemo(() => makeGlowTexture(), [])
+function Aura({ target, pointer, texture }: { target: THREE.Color; pointer: React.MutableRefObject<{ x: number; y: number }>; texture: THREE.Texture }) {
   const core = useRef<THREE.Sprite>(null)
   const halo = useRef<THREE.Sprite>(null)
   const mistA = useRef<THREE.Sprite>(null)
   const mistB = useRef<THREE.Sprite>(null)
   const group = useRef<THREE.Group>(null)
-
-  useEffect(() => () => texture.dispose(), [texture])
 
   useFrame((state) => {
     const t = state.clock.elapsedTime
@@ -137,11 +120,11 @@ function Aura({ target, pointer }: { target: THREE.Color; pointer: React.Mutable
     }
     if (core.current) {
       const breathe = 1 + Math.sin(t * 0.6) * 0.06
-      core.current.scale.setScalar(4.6 * breathe)
+      core.current.scale.setScalar(5.4 * breathe)
     }
     if (halo.current) {
       const breathe = 1 + Math.cos(t * 0.4) * 0.08
-      halo.current.scale.set(10.5 * breathe, 7 * breathe, 1)
+      halo.current.scale.set(12 * breathe, 8 * breathe, 1)
     }
     if (mistA.current) {
       mistA.current.position.x = Math.sin(t * 0.07) * 1.6 - 2.4
@@ -160,11 +143,11 @@ function Aura({ target, pointer }: { target: THREE.Color; pointer: React.Mutable
 
   return (
     <group ref={group}>
-      <sprite ref={core} position={[0, -0.4, -3]} scale={4.6}>
-        <spriteMaterial map={texture} transparent opacity={0.16} depthWrite={false} blending={THREE.AdditiveBlending} color="#5FA8A0" />
+      <sprite ref={core} position={[0, -0.3, -3]} scale={5.4}>
+        <spriteMaterial map={texture} transparent opacity={0.2} depthWrite={false} blending={THREE.AdditiveBlending} color="#5FA8A0" />
       </sprite>
-      <sprite ref={halo} position={[0, -1.4, -4.5]} scale={[10.5, 7, 1]}>
-        <spriteMaterial map={texture} transparent opacity={0.1} depthWrite={false} blending={THREE.AdditiveBlending} color="#5FA8A0" />
+      <sprite ref={halo} position={[0, -1.4, -4.5]} scale={[12, 8, 1]}>
+        <spriteMaterial map={texture} transparent opacity={0.12} depthWrite={false} blending={THREE.AdditiveBlending} color="#5FA8A0" />
       </sprite>
       <sprite ref={mistA} position={[-2.4, 1.4, -5]} scale={[7, 4, 1]}>
         <spriteMaterial map={texture} transparent opacity={0.05} depthWrite={false} blending={THREE.AdditiveBlending} color="#ECE7DF" />
@@ -187,11 +170,13 @@ function CameraDrift({ pointer }: { pointer: React.MutableRefObject<{ x: number;
   return null
 }
 
-export default function DiscoverThreeScene({ accent, quality }: SceneProps) {
+function SceneContent({ accent, quality }: SceneProps) {
   const pointer = useRef({ x: 0, y: 0 })
   const [target, setTarget] = useState(() => new THREE.Color(accent))
+  const texture = useMemo(() => makeGlowTexture(), [])
 
   useEffect(() => { setTarget(new THREE.Color(accent)) }, [accent])
+  useEffect(() => () => texture.dispose(), [texture])
 
   useEffect(() => {
     const onMove = (e: PointerEvent) => {
@@ -202,9 +187,16 @@ export default function DiscoverThreeScene({ accent, quality }: SceneProps) {
     return () => window.removeEventListener('pointermove', onMove)
   }, [])
 
-  const stars = quality === 'full' ? 1100 : 450
-  const embers = quality === 'full' ? 130 : 60
+  return (
+    <>
+      <CameraDrift pointer={pointer} />
+      <FloatingOrbs count={quality === 'full' ? 13 : 7} target={target} texture={texture} />
+      <Aura target={target} pointer={pointer} texture={texture} />
+    </>
+  )
+}
 
+export default function DiscoverThreeScene({ accent, quality }: SceneProps) {
   return (
     <Canvas
       dpr={[1, quality === 'full' ? 1.75 : 1.25]}
@@ -212,10 +204,7 @@ export default function DiscoverThreeScene({ accent, quality }: SceneProps) {
       gl={{ antialias: true, alpha: true, powerPreference: 'high-performance' }}
       style={{ position: 'absolute', inset: 0 }}
     >
-      <CameraDrift pointer={pointer} />
-      <Starfield count={stars} />
-      <Embers count={embers} target={target} />
-      <Aura target={target} pointer={pointer} />
+      <SceneContent accent={accent} quality={quality} />
     </Canvas>
   )
 }

@@ -1,5 +1,6 @@
 'use client'
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react'
+import { createPortal } from 'react-dom'
 import { motion, AnimatePresence, useReducedMotion } from 'motion/react'
 import {
   ComposedChart, Line, Bar, XAxis, YAxis, Tooltip,
@@ -650,8 +651,11 @@ export function CockpitChart({ ticker, data, chartRead, hi52, currency = 'USD' }
   )
 
   const panel = (height: number) => (
+    // No overflow-hidden here: the compare autocomplete dropdown must be able
+    // to extend below the panel edge. The decorative glow is clipped in its
+    // own absolutely positioned layer instead.
     <div
-      className="relative overflow-hidden"
+      className="relative"
       style={{
         background: 'linear-gradient(180deg, rgba(24,27,34,0.94) 0%, rgba(13,15,19,0.97) 100%)',
         border: '1px solid var(--border-2)',
@@ -660,12 +664,16 @@ export function CockpitChart({ ticker, data, chartRead, hi52, currency = 'USD' }
         padding: 'clamp(1.1rem, 2.4vw, 1.6rem)',
       }}
     >
-      {/* soft instrument glow */}
-      <div aria-hidden style={{ position: 'absolute', top: -140, left: '30%', width: 420, height: 280, background: 'radial-gradient(ellipse, rgba(201,162,76,0.07), transparent 70%)', pointerEvents: 'none' }} />
-      {controls}
-      {chartBody(height)}
-      {legendAndCompare}
-      {hintLine}
+      <div aria-hidden className="absolute inset-0 overflow-hidden pointer-events-none" style={{ borderRadius: 18 }}>
+        {/* soft instrument glow */}
+        <div style={{ position: 'absolute', top: -140, left: '30%', width: 420, height: 280, background: 'radial-gradient(ellipse, rgba(201,162,76,0.07), transparent 70%)' }} />
+      </div>
+      <div className="relative">
+        {controls}
+        {chartBody(height)}
+        {legendAndCompare}
+        {hintLine}
+      </div>
     </div>
   )
 
@@ -675,37 +683,45 @@ export function CockpitChart({ ticker, data, chartRead, hi52, currency = 'USD' }
           never causes a layout jump or scroll reset. */}
       {panel(330)}
 
+      {/* Portaled to <body>: ancestors with transform/perspective (the report's
+          reveal wrappers) would otherwise become the containing block for this
+          fixed overlay and trap "fullscreen" inside the chart column. */}
+      {typeof document !== 'undefined' && createPortal(
       <AnimatePresence>
         {fullscreen && (
+          // True fullscreen: a fixed overlay above everything (z-9999) with a
+          // solid backdrop. The chart takes the whole window minus its own
+          // controls; nothing of the report shows behind it.
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            transition={{ duration: 0.3 }}
-            className="fixed inset-0 z-[80] overflow-y-auto px-4 md:px-10 py-6"
-            style={{ background: 'rgba(5,6,8,0.97)' }}
+            transition={{ duration: 0.25 }}
+            className="fixed inset-0 z-[9999] flex flex-col px-3 md:px-6 py-4 overflow-y-auto"
+            style={{ background: '#06070A' }}
           >
-            <div className="max-w-6xl w-full mx-auto flex flex-col min-h-full justify-center">
-              <div className="flex items-center justify-between mb-3">
-                <p className="text-xs tracking-[0.16em] uppercase" style={{ color: MUTED }}>
-                  {ticker} · Fullscreen chart
-                </p>
-                <button
-                  onClick={() => setFullscreen(false)}
-                  aria-label="Close fullscreen chart"
-                  className="px-3 py-1.5 rounded-full text-xs font-semibold transition-all"
-                  style={{ background: 'rgba(236,231,223,0.08)', color: INK }}
-                  onMouseEnter={e => (e.currentTarget.style.background = 'rgba(236,231,223,0.14)')}
-                  onMouseLeave={e => (e.currentTarget.style.background = 'rgba(236,231,223,0.08)')}
-                >
-                  ✕ Close
-                </button>
-              </div>
+            <div className="flex items-center justify-between mb-3 shrink-0">
+              <p className="text-xs tracking-[0.16em] uppercase" style={{ color: MUTED }}>
+                {ticker} · Fullscreen chart
+              </p>
+              <button
+                onClick={() => setFullscreen(false)}
+                aria-label="Close fullscreen chart"
+                className="px-3.5 py-2 rounded-full text-xs font-semibold transition-all"
+                style={{ background: 'rgba(236,231,223,0.1)', color: INK }}
+                onMouseEnter={e => (e.currentTarget.style.background = 'rgba(236,231,223,0.16)')}
+                onMouseLeave={e => (e.currentTarget.style.background = 'rgba(236,231,223,0.1)')}
+              >
+                ✕ Close (Esc)
+              </button>
+            </div>
+            <div className="flex-1 min-h-0">
               {panel(fsH)}
             </div>
           </motion.div>
         )}
-      </AnimatePresence>
+      </AnimatePresence>,
+      document.body)}
 
       {/* Candlestick Pattern Read: stays under the cockpit chart, same shell */}
       <div
