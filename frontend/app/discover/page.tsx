@@ -370,10 +370,10 @@ export default function DiscoverPage() {
               {current ? (
                 <motion.div
                   key={current.symbol}
-                  initial={reduced ? { opacity: 0 } : { opacity: 0, x: -380, scale: 0.92, rotateY: 12, filter: 'blur(10px)' }}
+                  initial={reduced ? { opacity: 0 } : { opacity: 0, x: '-110vw', scale: 0.9, rotateY: 14, filter: 'blur(10px)' }}
                   animate={reduced ? { opacity: 1 } : { opacity: 1, x: 0, scale: 1, y: 0, rotate: 0, rotateY: 0, filter: 'blur(0px)' }}
-                  exit={reduced ? { opacity: 0 } : { opacity: 0, x: 420, scale: 0.95, rotateY: -10, filter: 'blur(8px)' }}
-                  transition={{ duration: reduced ? 0.2 : 0.65, ease: [0.22, 1, 0.36, 1] }}
+                  exit={reduced ? { opacity: 0 } : { opacity: 0, x: '110vw', scale: 0.92, rotateY: -14, filter: 'blur(8px)' }}
+                  transition={{ duration: reduced ? 0.2 : 0.7, ease: [0.22, 1, 0.36, 1] }}
                   drag={!reduced && currentReport && currentReport !== 'failed' ? 'x' : false}
                   dragConstraints={{ left: 0, right: 0 }}
                   dragElastic={0.6}

@@ -81,27 +81,27 @@ export function WatchlistControl({ onSelect }: WatchlistControlProps) {
                   <div className="space-y-1">
                     {items.map(item => (
                       <div
-                        key={item.symbol}
+                        key={item.ticker}
                         className="flex items-center gap-3 px-3 py-2.5 rounded-xl transition-colors"
                         style={{ background: 'transparent' }}
                         onMouseEnter={e => (e.currentTarget.style.background = 'var(--surface-3)')}
                         onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
                       >
-                        <button onClick={() => openStock(item.symbol)} className="flex-1 text-left">
+                        <button onClick={() => openStock(item.ticker)} className="flex-1 text-left">
                           <p className="text-sm font-medium" style={{ color: 'var(--text)' }}>{item.name}</p>
                           <p className="text-xs mt-0.5" style={{ color: 'var(--muted)', fontFamily: 'var(--font-mono)' }}>
-                            {item.symbol}
+                            {item.ticker}
                             {item.score != null ? `  ·  ${item.score}/100` : ''}
-                            {item.bias ? `  ·  ${item.bias}` : ''}
+                            {item.rating ? `  ·  ${item.rating}` : ''}
                           </p>
                         </button>
                         <button
-                          onClick={() => remove(item.symbol)}
+                          onClick={() => remove(item.ticker)}
                           className="text-xs px-2 py-1 rounded transition-colors"
                           style={{ color: 'var(--muted)' }}
                           onMouseEnter={e => (e.currentTarget.style.color = 'var(--neg)')}
                           onMouseLeave={e => (e.currentTarget.style.color = 'var(--muted)')}
-                          aria-label={`Remove ${item.symbol} from watchlist`}
+                          aria-label={`Remove ${item.ticker} from watchlist`}
                         >
                           Remove
                         </button>
