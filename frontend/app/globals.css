@@ -1,0 +1,227 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&family=JetBrains+Mono:wght@400;500;600&display=swap');
+@import "tw-animate-css";
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  /* Base depth ladder (no borders needed for separation) */
+  --bg:              #070709;
+  --bg-2:            #0A0B0E;
+  --surface:         #101216;
+  --surface-2:       #15171D;
+  --surface-3:       #1B1E25;
+  --elevated:        #1E222B;
+  --elevated-2:      #242833;
+
+  /* Hairlines, used sparingly */
+  --border:          #1A1D24;
+  --border-2:        #23272F;
+  --border-3:        #2F343F;
+
+  /* Ivory editorial surfaces (used intentionally, not everywhere) */
+  --ivory:           #ECE6DA;
+  --ivory-2:         #E2DACA;
+  --ink:             #16160F;
+  --ink-2:           #4A4A3E;
+
+  /* Text */
+  --text:            #ECE7DF;
+  --text-2:          #ACA79F;
+  --muted:           #6A6E78;
+  --faint:           #3A3E47;
+
+  /* Semantic */
+  --pos:             #2E9466;
+  --pos-soft:        #1C5E40;
+  --pos-bg:          rgba(46, 148, 102, 0.10);
+  --neg:             #B23A3A;
+  --neg-soft:        #6E2424;
+  --neg-bg:          rgba(178, 58, 58, 0.10);
+  --caut:            #C09A3E;
+  --caut-soft:       #6E5A22;
+  --caut-bg:         rgba(192, 154, 62, 0.10);
+
+  --accent:          #C9A24C;
+  --accent-2:        #DCBE6E;
+  --accent-bg:       rgba(201, 162, 76, 0.08);
+
+  /* Elevation */
+  --shadow-sm:  0 1px 2px rgba(0,0,0,0.40);
+  --shadow-md:  0 10px 34px rgba(0,0,0,0.45);
+  --shadow-lg:  0 28px 70px rgba(0,0,0,0.55), 0 4px 14px rgba(0,0,0,0.4);
+  --shadow-ivory: 0 24px 60px rgba(0,0,0,0.5), 0 2px 0 rgba(255,255,255,0.04) inset;
+
+  --font-sans:  'Inter', system-ui, -apple-system, sans-serif;
+  --font-mono:  'JetBrains Mono', 'Fira Mono', 'Consolas', monospace;
+}
+
+html { background-color: var(--bg); }
+
+body {
+  background-color: var(--bg);
+  color: var(--text);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: var(--border-2); border-radius: 2px; }
+::-webkit-scrollbar-thumb:hover { background: var(--border-3); }
+
+::selection { background: rgba(201, 162, 76, 0.16); }
+
+@layer base {
+  * { border-color: var(--border); }
+  body { background-color: var(--bg); color: var(--text); }
+  html { font-family: var(--font-sans); }
+}
+
+/* ---- Utilities ---- */
+
+.num {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.eyebrow {
+  font-size: 0.64rem;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+/* Filled, elevated panel. The new default visual language (not borders). */
+.panel {
+  background: linear-gradient(180deg, var(--surface-2) 0%, var(--surface) 100%);
+  border-radius: 14px;
+  box-shadow: var(--shadow-md);
+}
+
+.panel-elevated {
+  background: linear-gradient(180deg, var(--elevated) 0%, var(--surface-2) 100%);
+  border-radius: 16px;
+  box-shadow: var(--shadow-lg);
+}
+
+.panel-ivory {
+  background: linear-gradient(180deg, var(--ivory) 0%, var(--ivory-2) 100%);
+  color: var(--ink);
+  border-radius: 14px;
+  box-shadow: var(--shadow-ivory);
+}
+
+/* Cinematic page vignette for depth */
+.rr-vignette {
+  background:
+    radial-gradient(120% 80% at 50% -10%, rgba(201,162,76,0.05) 0%, transparent 45%),
+    radial-gradient(100% 100% at 50% 120%, rgba(46,148,102,0.04) 0%, transparent 55%),
+    var(--bg);
+}
+
+/* ---- Animations ---- */
+
+@keyframes rr-fade-up {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.rr-fade-up { opacity: 0; animation: rr-fade-up 1.1s ease forwards; }
+
+@keyframes rr-scroll-pulse {
+  0%, 100% { opacity: 0.35; transform: translateY(0); }
+  50%       { opacity: 0.85; transform: translateY(5px); }
+}
+.rr-scroll-pulse { animation: rr-scroll-pulse 2.2s ease-in-out infinite; }
+
+@keyframes rr-blink {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0; }
+}
+
+/* Ghost title behind particles: hold, then fade as the tagline forms */
+@keyframes rr-ghost-name {
+  0%    { opacity: 0; }
+  22%   { opacity: 0; }
+  40%   { opacity: 0.13; }
+  67%   { opacity: 0.13; }
+  76%   { opacity: 0; }
+  100%  { opacity: 0; }
+}
+/* 6s total: hidden until ~1.3s (particles already gathering), peak ~2.4s,
+   hold to ~4.0s, gone by ~4.6s as the title dissolves. */
+.rr-ghost-name { animation: rr-ghost-name 6s ease forwards; }
+
+/* Soft pulsing glow for the command bar */
+@keyframes rr-glow {
+  0%, 100% { opacity: 0.5; }
+  50%       { opacity: 0.85; }
+}
+.rr-glow { animation: rr-glow 3.4s ease-in-out infinite; }
+
+/* Command bar reveal: smooth upward fade with slight scale */
+@keyframes rr-rise-in {
+  from { opacity: 0; transform: translateY(26px) scale(0.97); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+.rr-rise-in {
+  opacity: 0;
+  animation: rr-rise-in 1.2s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+/* One-time light sweep across the report dossier cover */
+@keyframes rr-sweep {
+  from { transform: translateX(-160%) skewX(-14deg); opacity: 0; }
+  12%  { opacity: 1; }
+  to   { transform: translateX(380%) skewX(-14deg); opacity: 0; }
+}
+.rr-sweep {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 38%;
+  pointer-events: none;
+  background: linear-gradient(
+    100deg,
+    transparent 0%,
+    rgba(244, 240, 232, 0.045) 42%,
+    rgba(244, 240, 232, 0.085) 50%,
+    rgba(244, 240, 232, 0.045) 58%,
+    transparent 100%
+  );
+  animation: rr-sweep 1.8s cubic-bezier(0.4, 0, 0.2, 1) 0.9s 1 both;
+}
+
+/* Gentle hover lift for report modules: depth without rotation */
+.rr-lift {
+  transition: transform 0.45s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.45s ease;
+}
+.rr-lift:hover {
+  transform: translateY(-3px);
+}
+
+/* Respect reduced motion: show everything immediately, no drift */
+@media (prefers-reduced-motion: reduce) {
+  .rr-fade-up,
+  .rr-rise-in {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+  .rr-scroll-pulse,
+  .rr-glow {
+    animation: none !important;
+  }
+  .rr-sweep {
+    animation: none !important;
+    opacity: 0 !important;
+  }
+  .rr-lift,
+  .rr-lift:hover {
+    transform: none !important;
+  }
+}
