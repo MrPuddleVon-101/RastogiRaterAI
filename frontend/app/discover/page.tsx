@@ -9,6 +9,7 @@ import { DECK_UNIVERSE, DeckEntry } from '@/lib/deck'
 import { fetchReportCached, getCachedReport } from '@/lib/reportCache'
 import { RatingResponse, ChartDataPoint } from '@/lib/types'
 import { useWatchlist } from '@/lib/watchlist'
+import { getCompanyAuraTheme } from '@/lib/auraTheme'
 import { cleanText } from '@/lib/utils'
 import { DiscoverChamber } from '@/components/DiscoverChamber'
 import { MarketCursorFollower } from '@/components/MarketCursorFollower'
@@ -25,14 +26,6 @@ const MUTED = 'var(--muted)'
 const POS = '#2E9466'
 const NEG = '#B23A3A'
 const GOLD = '#C9A24C'
-
-// Each stock tints the chamber's aura with its own color.
-const AURAS = ['#5FA8A0', '#C9A24C', '#3E9466', '#8E7CC3', '#5B7BA8', '#C96A4C']
-function auraFor(symbol: string): string {
-  let h = 0
-  for (let i = 0; i < symbol.length; i++) h = (h * 31 + symbol.charCodeAt(i)) | 0
-  return AURAS[Math.abs(h) % AURAS.length]
-}
 
 type ReportState = RatingResponse | 'failed' | undefined
 
@@ -238,7 +231,18 @@ export default function DiscoverPage() {
   const deck = DECK_UNIVERSE
   const current = idx < deck.length ? deck[idx] : null
   const currentReport: ReportState = current ? reports[current.symbol] : undefined
-  const accent = current ? auraFor(current.symbol) : '#5FA8A0'
+
+  // The active company's brand-derived aura theme tints the whole 3D chamber
+  // (central glow, rim light, fog, floating glow) and the card's edge accent.
+  // Resolves from the curated brand map, then the report's sector, then gold.
+  const theme = useMemo(
+    () => getCompanyAuraTheme(
+      current?.symbol,
+      currentReport && currentReport !== 'failed' ? currentReport : undefined,
+    ),
+    [current, currentReport],
+  )
+  const accent = theme.glow
 
   const ensureReport = useCallback((symbol: string) => {
     const cached = getCachedReport(symbol)
@@ -323,7 +327,7 @@ export default function DiscoverPage() {
     <>
       {/* The chamber: Three.js starfield, mist, and the stock's aura.
           Falls back to the 2D space stage without WebGL or with reduced motion. */}
-      <DiscoverChamber accent={accent} />
+      <DiscoverChamber theme={theme} />
       <MarketCursorFollower intensity="full" />
 
       <div className="min-h-screen relative z-20 flex flex-col">

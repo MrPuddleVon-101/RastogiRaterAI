@@ -27,17 +27,33 @@ export function ChamberTerrain({ accent }: { accent: string }) {
   }, [px, reduced])
 
   return (
-    <div aria-hidden className="absolute inset-x-0 bottom-0 overflow-hidden" style={{ height: '34vh', pointerEvents: 'none' }}>
+    <div aria-hidden className="absolute inset-x-0 bottom-0 overflow-hidden" style={{ height: '40vh', pointerEvents: 'none' }}>
       {/* aura wash rising off the terrain */}
       <div
         className="absolute inset-x-0 bottom-0"
         style={{
-          height: '70%',
-          background: `radial-gradient(ellipse 80% 100% at 50% 100%, ${accent}14 0%, transparent 70%)`,
-          filter: 'blur(18px)',
+          height: '80%',
+          background: `radial-gradient(ellipse 78% 100% at 50% 100%, ${accent}22 0%, transparent 68%)`,
+          filter: 'blur(22px)',
           transition: 'background 1.4s ease',
         }}
       />
+
+      {/* side boulder masses, framing the hero like the reference foreground */}
+      <motion.svg
+        viewBox="0 0 320 260" preserveAspectRatio="xMinYMax slice"
+        className="absolute bottom-0 left-0" style={{ width: '26vw', height: '88%', x: reduced ? 0 : frontX }}
+      >
+        <path d="M0 260 L0 120 C30 96 52 110 78 92 C104 74 120 96 150 86 C188 74 206 112 240 120 C200 150 150 150 120 175 C92 198 60 196 0 220 Z" fill="#090B10" />
+        <path d="M0 150 C30 126 52 140 78 122" fill="none" stroke={`${accent}33`} strokeWidth="1.4" />
+      </motion.svg>
+      <motion.svg
+        viewBox="0 0 320 260" preserveAspectRatio="xMaxYMax slice"
+        className="absolute bottom-0 right-0" style={{ width: '28vw', height: '92%', x: reduced ? 0 : frontX }}
+      >
+        <path d="M320 260 L320 110 C290 92 266 108 238 88 C210 68 192 96 158 84 C120 70 104 116 70 126 C112 156 168 150 200 178 C230 204 262 200 320 224 Z" fill="#070910" />
+        <path d="M320 140 C290 122 266 138 238 118" fill="none" stroke={`${accent}30`} strokeWidth="1.4" />
+      </motion.svg>
 
       {/* back ridge, drifting gently against the pointer */}
       <motion.svg
