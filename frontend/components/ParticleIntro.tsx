@@ -10,21 +10,22 @@ interface ParticleIntroProps {
   children?: React.ReactNode
 }
 
-// Sequence: tagline forms first, dissolves, then the brand locks at 8.8s.
+// The brand locks at 8.8s on the full timeline. We start the clock at SKIP_TO,
+// landing right at the brand-forming phase so the tagline never shows. Particles
+// (sped up in build) gather "Stonky" from a scatter within ~2s of load.
 const BRAND_LOCK = 8.8
+const SKIP_TO = 6.4
 
 function StaticHero() {
   return (
-    <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 px-6 text-center">
+    // Mirrors the particle brand: dominant, seated low in the stage.
+    <div className="absolute inset-0 flex flex-col items-center justify-center px-6 text-center" style={{ paddingTop: '12vh' }}>
       <span
         aria-hidden
         className="font-bold"
-        style={{ color: 'var(--text)', fontSize: 'clamp(2.2rem, 7vw, 4.4rem)', letterSpacing: '-0.03em', lineHeight: 1 }}
+        style={{ color: 'var(--text)', fontSize: 'clamp(3rem, 9.5vw, 6rem)', letterSpacing: '-0.03em', lineHeight: 1 }}
       >
         Stonky
-      </span>
-      <span aria-hidden style={{ color: 'var(--accent-2)', fontSize: 'clamp(1rem, 2.4vw, 1.4rem)' }}>
-        A colder look at hot stocks.
       </span>
     </div>
   )
@@ -47,15 +48,15 @@ export function ParticleIntro({ skipIntro = false, children }: ParticleIntroProp
   }, [reduced, skipIntro])
 
   const instant = skipIntro || reduced || canvasFailed
-  const inputDelay = instant ? 0.2 : BRAND_LOCK + 0.4
+  const inputDelay = instant ? 0.2 : (BRAND_LOCK - SKIP_TO) + 0.4
 
   const showStatic = reduced || canvasFailed
 
   return (
-    <div className="relative w-full flex flex-col" style={{ minHeight: '100vh' }}>
+    <div className="relative z-20 w-full flex flex-col" style={{ minHeight: '100vh' }}>
       {/* Screen-reader only. Never visible, so the brand is only ever shown by
           the particles assembling it. */}
-      <h1 className="sr-only">Stonky. A colder look at hot stocks.</h1>
+      <h1 className="sr-only">Stonky</h1>
 
       {/* Particle stage (upper) */}
       <div className="relative shrink-0" style={{ height: '54vh' }}>
@@ -65,8 +66,10 @@ export function ParticleIntro({ skipIntro = false, children }: ParticleIntroProp
           <ParticleTextEffect
             className="absolute inset-0"
             title="Stonky"
-            tagline="A colder look at hot stocks."
-            startAt={skipIntro ? BRAND_LOCK - 0.3 : 0}
+            /* Sampled only to size the particle pool; this phase is skipped past,
+               so it is never rendered on screen. */
+            tagline="Stonky"
+            startAt={skipIntro ? BRAND_LOCK - 0.3 : SKIP_TO}
             onReady={() => { readyRef.current = true }}
           />
         )}

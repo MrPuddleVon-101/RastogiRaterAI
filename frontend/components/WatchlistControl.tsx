@@ -7,16 +7,29 @@ import { useWatchlist } from '@/lib/watchlist'
 interface WatchlistControlProps {
   /** Override how a saved stock opens (the report page loads in place). */
   onSelect?: (symbol: string) => void
+  /** Controlled open state. When provided, the drawer is driven externally. */
+  open?: boolean
+  /** Notified on open/close requests (used with controlled `open`). */
+  onOpenChange?: (open: boolean) => void
+  /** Hide the built-in pill trigger (e.g. when opened from a custom navbar). */
+  hideTrigger?: boolean
 }
 
 /**
  * Global watchlist: one top-right control, one drawer, one localStorage list.
  * Mounts on landing, report, and discover; stays in sync via watchlist events.
+ * Can run self-contained (own pill trigger) or controlled from a parent navbar.
  */
-export function WatchlistControl({ onSelect }: WatchlistControlProps) {
+export function WatchlistControl({ onSelect, open: openProp, onOpenChange, hideTrigger }: WatchlistControlProps) {
   const router = useRouter()
   const { items, remove } = useWatchlist()
-  const [open, setOpen] = useState(false)
+  const [openInternal, setOpenInternal] = useState(false)
+  const isControlled = openProp !== undefined
+  const open = isControlled ? openProp : openInternal
+  const setOpen = useCallback((next: boolean) => {
+    if (!isControlled) setOpenInternal(next)
+    onOpenChange?.(next)
+  }, [isControlled, onOpenChange])
 
   const openStock = useCallback((symbol: string) => {
     setOpen(false)
@@ -26,15 +39,17 @@ export function WatchlistControl({ onSelect }: WatchlistControlProps) {
 
   return (
     <>
-      <button
-        onClick={() => setOpen(true)}
-        className="text-xs px-3 py-1.5 rounded-full transition-all"
-        style={{ background: 'var(--surface-2)', color: 'var(--text-2)' }}
-        onMouseEnter={e => { e.currentTarget.style.background = 'var(--surface-3)'; e.currentTarget.style.color = 'var(--text)' }}
-        onMouseLeave={e => { e.currentTarget.style.background = 'var(--surface-2)'; e.currentTarget.style.color = 'var(--text-2)' }}
-      >
-        Watchlist{items.length > 0 ? ` (${items.length})` : ''}
-      </button>
+      {!hideTrigger && (
+        <button
+          onClick={() => setOpen(true)}
+          className="text-xs px-3 py-1.5 rounded-full transition-all"
+          style={{ background: 'var(--surface-2)', color: 'var(--text-2)' }}
+          onMouseEnter={e => { e.currentTarget.style.background = 'var(--surface-3)'; e.currentTarget.style.color = 'var(--text)' }}
+          onMouseLeave={e => { e.currentTarget.style.background = 'var(--surface-2)'; e.currentTarget.style.color = 'var(--text-2)' }}
+        >
+          Watchlist{items.length > 0 ? ` (${items.length})` : ''}
+        </button>
+      )}
 
       <AnimatePresence>
         {open && (
@@ -81,27 +96,27 @@ export function WatchlistControl({ onSelect }: WatchlistControlProps) {
                   <div className="space-y-1">
                     {items.map(item => (
                       <div
-                        key={item.ticker}
+                        key={item.symbol}
                         className="flex items-center gap-3 px-3 py-2.5 rounded-xl transition-colors"
                         style={{ background: 'transparent' }}
                         onMouseEnter={e => (e.currentTarget.style.background = 'var(--surface-3)')}
                         onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
                       >
-                        <button onClick={() => openStock(item.ticker)} className="flex-1 text-left">
+                        <button onClick={() => openStock(item.symbol)} className="flex-1 text-left">
                           <p className="text-sm font-medium" style={{ color: 'var(--text)' }}>{item.name}</p>
                           <p className="text-xs mt-0.5" style={{ color: 'var(--muted)', fontFamily: 'var(--font-mono)' }}>
-                            {item.ticker}
+                            {item.symbol}
                             {item.score != null ? `  ·  ${item.score}/100` : ''}
                             {item.rating ? `  ·  ${item.rating}` : ''}
                           </p>
                         </button>
                         <button
-                          onClick={() => remove(item.ticker)}
+                          onClick={() => remove(item.symbol)}
                           className="text-xs px-2 py-1 rounded transition-colors"
                           style={{ color: 'var(--muted)' }}
                           onMouseEnter={e => (e.currentTarget.style.color = 'var(--neg)')}
                           onMouseLeave={e => (e.currentTarget.style.color = 'var(--muted)')}
-                          aria-label={`Remove ${item.ticker} from watchlist`}
+                          aria-label={`Remove ${item.symbol} from watchlist`}
                         >
                           Remove
                         </button>

@@ -1,480 +1,212 @@
 'use client'
-import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
-import {
-  motion, AnimatePresence, useReducedMotion, useMotionValue, useSpring,
-} from 'motion/react'
-import Link from 'next/link'
-import { useRouter } from 'next/navigation'
-import { DECK_UNIVERSE, DeckEntry } from '@/lib/deck'
-import { fetchReportCached, getCachedReport } from '@/lib/reportCache'
-import { RatingResponse, ChartDataPoint } from '@/lib/types'
-import { useWatchlist } from '@/lib/watchlist'
-import { getCompanyAuraTheme } from '@/lib/auraTheme'
-import { cleanText } from '@/lib/utils'
-import { DiscoverChamber } from '@/components/DiscoverChamber'
-import { MarketCursorFollower } from '@/components/MarketCursorFollower'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { motion, AnimatePresence } from 'motion/react'
+import { MessageSquareText, Layers, Bookmark, ArrowUpRight } from 'lucide-react'
+import { DeckEntry } from '@/lib/deck'
+import { fetchReportCached } from '@/lib/reportCache'
+import { buildTickyDeck } from '@/lib/tickyMatch'
+import { ReportAura } from '@/components/ReportAura'
+import { Atmosphere } from '@/components/Atmosphere'
+import { Ticky, TickyPhase } from '@/components/ticky/Ticky'
+import { TickyChat } from '@/components/ticky/TickyChat'
+import { TickyDeck } from '@/components/ticky/TickyDeck'
 import { WatchlistControl } from '@/components/WatchlistControl'
-import { StockLogo } from '@/components/StockLogo'
-import { StonkyMark } from '@/components/StonkyMark'
+import { StonkyNav } from '@/components/StonkyNav'
+import { useWatchlist, addToWatchlist } from '@/lib/watchlist'
 
-// Graphite cockpit shell: the Discover card uses the SAME dark card system
-// as the report page, so the whole product reads as one terminal.
-const PANEL = 'linear-gradient(180deg, rgba(26,29,36,0.92) 0%, rgba(15,17,21,0.96) 100%)'
-const INK = 'var(--text)'
-const SUB = 'var(--text-2)'
-const MUTED = 'var(--muted)'
-const POS = '#2E9466'
-const NEG = '#B23A3A'
-const GOLD = '#C9A24C'
+// Ask Ticky: an AI-assistant style stock-discovery page. Ticky (a real mascot,
+// animated by his image frames) floats in, types out a guiding greeting, points
+// at the chat, the user describes what they want, Ticky thinks, then a swipeable
+// deck appears. Matching is deterministic (lib/tickyMatch). Saving uses the one
+// shared watchlist (lib/watchlist). Backgrounds: a subtle emerald matrix over
+// the Stonky grid for the chat/intake, and the calmer grid + report waves for
+// the deck so it shares the report's atmosphere.
 
-type ReportState = RatingResponse | 'failed' | undefined
+type Phase = 'ask' | 'thinking' | 'deck'
 
-function biasLabel(report: RatingResponse): string {
-  if (report.longTermThesisBias?.label) return report.longTermThesisBias.label
-  const s = report.overallScore
-  if (s >= 70) return 'Bullish'
-  if (s >= 58) return 'Cautiously bullish'
-  if (s >= 45) return 'Cautiously bearish'
-  return 'Bearish'
-}
+const GREETING = "Hey, I'm Ticky, your ticker finder. Tell me what you're after and I'll dig up a deck."
+const POINT_HINT = 'Type it below, or grab one of my hunches.'
+const NUDGE = "Stuck? Tap one of my hunches and we're off."
+const FOCUS_LINE = "Go on, I'm all ears."
+const RESET_HINT = 'Round two. What are you in the mood for?'
+const THINKING = ['On it. Reading the tape...', 'Hunting your kind of stock...', 'Digging through the market...', 'Lining up the shortlist...']
+const CELEBRATE = ["Boom. Locked in.", "Got 'em. Take a look.", 'Nailed it. Your deck is ready.', 'Found your shortlist.']
+const pick = (arr: string[]) => arr[Math.floor(Math.random() * arr.length)]
 
-function biasInk(label: string): string {
-  return label.toLowerCase().includes('bull') ? POS : NEG
-}
-
-function MemoRow({ label, text }: { label: string; text: string }) {
-  return (
-    <div>
-      <p style={{ fontSize: '0.6rem', fontWeight: 600, letterSpacing: '0.18em', textTransform: 'uppercase', color: 'var(--accent)', marginBottom: 3 }}>
-        {label}
-      </p>
-      <p style={{ fontSize: '0.9rem', lineHeight: 1.55, color: SUB }}>{text}</p>
-    </div>
-  )
-}
-
-/** Real 1Y sparkline drawn from the report's bundled chart data. */
-function CardSparkline({ data }: { data: ChartDataPoint[] }) {
-  const spark = useMemo(() => {
-    const closes = (data || []).map(d => d.close ?? d.price).filter((v): v is number => v != null)
-    if (closes.length < 8) return null
-    const step = Math.max(1, Math.floor(closes.length / 90))
-    const pts = closes.filter((_, i) => i % step === 0)
-    const min = Math.min(...pts)
-    const max = Math.max(...pts)
-    const span = max - min || 1
-    const path = pts.map((v, i) => `${(i / (pts.length - 1)) * 100},${30 - ((v - min) / span) * 26 - 2}`).join(' ')
-    return { path, up: pts[pts.length - 1] >= pts[0] }
-  }, [data])
-
-  if (!spark) return null
-  const color = spark.up ? POS : NEG
-  return (
-    <div className="flex items-center gap-2.5 mt-1 mb-5">
-      <svg viewBox="0 0 100 30" preserveAspectRatio="none" className="flex-1" style={{ height: 34 }} aria-hidden>
-        <polyline points={spark.path} fill="none" stroke={color} strokeWidth="1.3" opacity="0.9" strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
-      </svg>
-      <span style={{ fontSize: '0.6rem', color: MUTED, fontFamily: 'var(--font-mono)', letterSpacing: '0.1em' }}>1Y</span>
-    </div>
-  )
-}
-
-/** Cursor tilt: the floating card leans toward the pointer, spring-settled. */
-function TiltCard({ children, disabled }: { children: React.ReactNode; disabled: boolean }) {
-  const rx = useMotionValue(0)
-  const ry = useMotionValue(0)
-  const srx = useSpring(rx, { stiffness: 160, damping: 20 })
-  const sry = useSpring(ry, { stiffness: 160, damping: 20 })
-
-  const onMove = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (disabled) return
-    const rect = e.currentTarget.getBoundingClientRect()
-    const px = (e.clientX - rect.left) / rect.width
-    const py = (e.clientY - rect.top) / rect.height
-    ry.set((px - 0.5) * 6)
-    rx.set(-(py - 0.5) * 4.5)
-  }
-  const onLeave = () => { rx.set(0); ry.set(0) }
-
-  return (
-    <motion.div
-      onMouseMove={onMove}
-      onMouseLeave={onLeave}
-      style={disabled ? undefined : { rotateX: srx, rotateY: sry, transformStyle: 'preserve-3d', transformPerspective: 1000 }}
-    >
-      {children}
-    </motion.div>
-  )
-}
-
-function DeckCard({ entry, report, saved, accent }: { entry: DeckEntry; report: RatingResponse; saved: boolean; accent: string }) {
-  const bias = biasLabel(report)
-  const risk =
-    report.investmentThesis?.bearCase?.[0] ||
-    report.drags?.[0] ||
-    'Valuation and execution risk.'
-  const coldTake = cleanText(report.nuancedLabel || report.oneLineVerdict || '')
-
-  return (
-    <div
-      className="relative overflow-hidden select-none"
-      style={{
-        background: PANEL,
-        border: '1px solid var(--border-2)',
-        borderRadius: 18,
-        boxShadow: `0 40px 90px rgba(0,0,0,0.7), 0 0 90px ${accent}2E, inset 0 1px 0 rgba(236,231,223,0.05)`,
-        color: INK,
-        transformStyle: 'preserve-3d',
-      }}
-    >
-      <div style={{ position: 'absolute', left: 0, top: 0, height: 3, width: '100%', background: `linear-gradient(90deg, ${accent} 0%, transparent 65%)`, opacity: 0.7 }} />
-
-      <div style={{ padding: 'clamp(1.4rem, 3.6vw, 2rem)', transform: 'translateZ(0)' }}>
-        {/* The reveal moment: big logo with the stock's aura glowing behind it */}
-        <div className="flex items-start justify-between gap-4 mb-4" style={{ transform: 'translateZ(28px)' }}>
-          <div className="flex items-center gap-4">
-            <div className="relative shrink-0">
-              <div
-                aria-hidden
-                style={{
-                  position: 'absolute', inset: -16, borderRadius: 999,
-                  background: `radial-gradient(circle, ${accent}38 0%, transparent 70%)`,
-                  filter: 'blur(10px)',
-                }}
-              />
-              <StockLogo symbol={entry.symbol} size={72} radius={18} glow />
-            </div>
-            <div>
-              <h2 className="font-semibold leading-tight" style={{ fontSize: 'clamp(1.3rem, 3vw, 1.7rem)', letterSpacing: '-0.025em', color: INK }}>
-                {report.companyName || entry.name}
-              </h2>
-              <p className="mt-1" style={{ fontFamily: 'var(--font-mono)', fontSize: '0.76rem', color: MUTED, letterSpacing: '0.08em' }}>
-                {entry.symbol}{report.sector ? `  ·  ${report.sector}` : ''}
-              </p>
-            </div>
-          </div>
-          <div className="text-right shrink-0">
-            <p style={{ fontFamily: 'var(--font-mono)', fontSize: '1.9rem', fontWeight: 600, lineHeight: 1, color: INK }}>
-              {report.overallScore}
-            </p>
-            <p style={{ fontSize: '0.6rem', letterSpacing: '0.16em', color: MUTED, marginTop: 2 }}>SCORE / 100</p>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-2 flex-wrap mb-3" style={{ transform: 'translateZ(18px)' }}>
-          <span
-            className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold"
-            style={{ color: biasInk(bias), background: 'rgba(236,231,223,0.06)' }}
-          >
-            <span style={{ width: 6, height: 6, borderRadius: 999, background: biasInk(bias), display: 'inline-block' }} />
-            Long-term thesis bias: {bias}
-          </span>
-          {saved && (
-            <span
-              className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold"
-              style={{ color: GOLD, background: 'rgba(201,162,76,0.1)' }}
-            >
-              <span style={{ width: 6, height: 6, borderRadius: 999, background: GOLD, display: 'inline-block' }} />
-              Saved
-            </span>
-          )}
-        </div>
-
-        <div style={{ transform: 'translateZ(12px)' }}>
-          <CardSparkline data={report.chartData} />
-        </div>
-
-        <div className="space-y-3.5" style={{ transform: 'translateZ(10px)' }}>
-          <MemoRow label="What it does" text={entry.whatItDoes} />
-          <MemoRow label="Best thing" text={entry.bestThing} />
-          <MemoRow label="Unique edge" text={entry.uniqueEdge} />
-          <MemoRow label="Main risk" text={cleanText(risk)} />
-        </div>
-
-        {coldTake && (
-          <p
-            className="mt-5 pt-4"
-            style={{ borderTop: '1px solid rgba(236,231,223,0.08)', fontSize: '0.98rem', fontWeight: 600, letterSpacing: '-0.01em', color: INK, transform: 'translateZ(16px)' }}
-          >
-            Cold take: <span style={{ fontWeight: 500, color: SUB }}>{coldTake}</span>
-          </p>
-        )}
-      </div>
-    </div>
-  )
-}
-
-function LoadingCard({ symbol }: { symbol: string }) {
-  return (
-    <div
-      className="flex flex-col items-center justify-center gap-4"
-      style={{ background: PANEL, border: '1px solid var(--border-2)', borderRadius: 18, minHeight: 420, boxShadow: 'var(--shadow-lg)' }}
-    >
-      <span className="rr-scroll-pulse" style={{ width: 8, height: 8, borderRadius: 999, background: 'var(--accent)', display: 'inline-block' }} />
-      <p style={{ fontFamily: 'var(--font-mono)', fontSize: '0.85rem', color: SUB, letterSpacing: '0.1em' }}>
-        Scoring {symbol}
-      </p>
-      <p className="text-xs" style={{ color: MUTED }}>Running the six tests on live data.</p>
-    </div>
-  )
-}
+// Tiny "how it works" guide, so a first-time user knows exactly what happens.
+const STEPS = [
+  { icon: MessageSquareText, title: 'Tell Ticky', body: 'Your goal, risk, horizon, or a stock you like, in plain English.' },
+  { icon: Layers, title: 'Get a deck', body: 'Ticky scores public data and lines up a shortlist that fits.' },
+  { icon: Bookmark, title: 'Save or dive', body: 'Swipe to add to your watchlist, or deep dive into a full report.' },
+]
 
 export default function DiscoverPage() {
-  const router = useRouter()
-  const reduced = useReducedMotion()
-  const [idx, setIdx] = useState(0)
-  const [reports, setReports] = useState<Record<string, ReportState>>({})
-  const { items: watch, save, has } = useWatchlist()
-  const [skippedNote, setSkippedNote] = useState<string | null>(null)
-  const fetchingRef = useRef<Set<string>>(new Set())
+  const [phase, setPhase] = useState<Phase>('ask')
+  const [tickyPhase, setTickyPhase] = useState<TickyPhase>('enter')
+  const [bubble, setBubble] = useState<string | null>(null)
+  const [deck, setDeck] = useState<DeckEntry[]>([])
+  const [summary, setSummary] = useState('')
+  const [deckKey, setDeckKey] = useState(0)
+  const [watchlistOpen, setWatchlistOpen] = useState(false)
+  const { items: watchlistItems } = useWatchlist()
 
-  const deck = DECK_UNIVERSE
-  const current = idx < deck.length ? deck[idx] : null
-  const currentReport: ReportState = current ? reports[current.symbol] : undefined
+  const timers = useRef<number[]>([])
+  const clearTimers = useCallback(() => { timers.current.forEach(t => clearTimeout(t)); timers.current = [] }, [])
+  const after = useCallback((ms: number, fn: () => void) => { timers.current.push(window.setTimeout(fn, ms)) }, [])
 
-  // The active company's brand-derived aura theme tints the whole 3D chamber
-  // (central glow, rim light, fog, floating glow) and the card's edge accent.
-  // Resolves from the curated brand map, then the report's sector, then gold.
-  const theme = useMemo(
-    () => getCompanyAuraTheme(
-      current?.symbol,
-      currentReport && currentReport !== 'failed' ? currentReport : undefined,
-    ),
-    [current, currentReport],
-  )
-  const accent = theme.glow
-
-  const ensureReport = useCallback((symbol: string) => {
-    const cached = getCachedReport(symbol)
-    if (cached) {
-      setReports(prev => (prev[symbol] ? prev : { ...prev, [symbol]: cached }))
-      return Promise.resolve()
-    }
-    if (fetchingRef.current.has(symbol)) return Promise.resolve()
-    fetchingRef.current.add(symbol)
-    return fetchReportCached(symbol)
-      .then(data => setReports(prev => ({ ...prev, [symbol]: data })))
-      .catch(() => setReports(prev => ({ ...prev, [symbol]: 'failed' })))
-      .finally(() => fetchingRef.current.delete(symbol))
-  }, [])
-
-  // Load the current card first, then quietly prefetch the next two.
-  // Sequential on purpose: the backend is never hit with a burst.
   useEffect(() => {
-    let cancelled = false
-    const run = async () => {
-      for (let offset = 0; offset <= 2; offset++) {
-        if (cancelled) return
-        const entry = deck[idx + offset]
-        if (!entry) return
-        await ensureReport(entry.symbol)
+    // One-time migration: any stocks saved under the old separate Discover key
+    // are MERGED into the shared watchlist (dedup handled by addToWatchlist),
+    // then the dead key is removed. This recovers items saved in the previous
+    // version that were stranded and not showing in the watchlist.
+    try {
+      const old = window.localStorage.getItem('stonky-discover-wishlist')
+      if (old) {
+        const arr = JSON.parse(old)
+        if (Array.isArray(arr)) arr.forEach(it => addToWatchlist(it))
+        window.localStorage.removeItem('stonky-discover-wishlist')
       }
-    }
-    run()
-    return () => { cancelled = true }
-  }, [idx, deck, ensureReport])
+    } catch { /* ignore */ }
+    setTickyPhase('enter')
+    after(1100, () => setBubble(GREETING)) // float in first, then start talking
+    return clearTimers
+  }, [after, clearTimers])
 
-  // Cards always travel left to right: the current one exits stage right,
-  // the next enters from stage left, like a reveal conveyor.
-  const advance = useCallback(() => {
-    setIdx(i => i + 1)
-  }, [])
-
-  const skip = useCallback(() => {
-    setSkippedNote(null)
-    advance()
-  }, [advance])
-
-  const addCurrent = useCallback(() => {
-    if (!current || !currentReport || currentReport === 'failed') return
-    save({
-      symbol: current.symbol,
-      name: currentReport.companyName || current.name,
-      score: currentReport.overallScore,
-      bias: biasLabel(currentReport),
+  // After the greeting finishes typing, Ticky waves, points at the chat, then
+  // gently nudges the user toward a hunch if they linger.
+  const handleGreetingTyped = useCallback(() => {
+    if (phase !== 'ask' || tickyPhase !== 'enter') return
+    setTickyPhase('wave')
+    after(1700, () => {
+      setTickyPhase('point')
+      after(9000, () => setBubble(NUDGE))
     })
-    advance()
-  }, [current, currentReport, save, advance])
+  }, [phase, tickyPhase, after])
 
-  const deepDive = useCallback((symbol: string) => {
-    router.push(`/?ticker=${encodeURIComponent(symbol)}`)
-  }, [router])
+  // Ticky reacts when the user engages the chat box (after the intro has landed).
+  const handleChatFocus = useCallback((f: boolean) => {
+    if (phase !== 'ask') return
+    if (tickyPhase === 'enter' || tickyPhase === 'wave') return
+    clearTimers() // cancel any pending nudge
+    setTickyPhase('point')
+    setBubble(f ? FOCUS_LINE : POINT_HINT)
+  }, [phase, tickyPhase, clearTimers])
 
-  // A ticker with no data is skipped gracefully, never a crash.
-  useEffect(() => {
-    if (current && currentReport === 'failed') {
-      setSkippedNote(`${current.symbol} skipped: data unavailable for this ticker.`)
-      const t = setTimeout(() => advance(), 350)
-      return () => clearTimeout(t)
-    }
-  }, [current, currentReport, advance])
+  const handleSubmit = useCallback((text: string) => {
+    clearTimers()
+    const res = buildTickyDeck(text)
+    setDeck(res.entries)
+    setSummary(res.summary)
+    res.entries.slice(0, 3).forEach(e => { fetchReportCached(e.symbol).catch(() => {}) })
+    setPhase('thinking')
+    setTickyPhase('thinking')
+    setBubble(pick(THINKING))
+    after(2200, () => {
+      setPhase('deck')
+      setDeckKey(k => k + 1)
+      setTickyPhase('celebrate')
+      setBubble(pick(CELEBRATE))
+      after(1800, () => { setTickyPhase('idle'); setBubble(null) })
+    })
+  }, [after, clearTimers])
 
-  // Keyboard: left = skip, right = watchlist, Enter = deep dive.
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (!current || !currentReport || currentReport === 'failed') return
-      if (e.key === 'ArrowLeft') { e.preventDefault(); skip() }
-      else if (e.key === 'ArrowRight') { e.preventDefault(); addCurrent() }
-      else if (e.key === 'Enter') { e.preventDefault(); deepDive(current.symbol) }
-    }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [current, currentReport, skip, addCurrent, deepDive])
-
-  const watched = current ? has(current.symbol) : false
+  const handleReset = useCallback(() => {
+    clearTimers()
+    setPhase('ask')
+    setTickyPhase('point')
+    setBubble(RESET_HINT)
+  }, [clearTimers])
 
   return (
     <>
-      {/* The chamber: Three.js starfield, mist, and the stock's aura.
-          Falls back to the 2D space stage without WebGL or with reduced motion. */}
-      <DiscoverChamber theme={theme} />
-      <MarketCursorFollower intensity="full" />
+      {/* One static ambient layer, same as the home page. This route used to
+          mount four always-on effects at once (matrix canvas, quant grid
+          canvas, cursor spotlight rAF and the signal trail), which is why Ask
+          Ticky was the laggiest screen in the app. The deck still gets its
+          report aura, since that one is tied to the score being shown. */}
+      <Atmosphere />
+      {phase === 'deck' && <ReportAura />}
 
-      <div className="min-h-screen relative z-20 flex flex-col">
-        {/* Minimal header */}
-        <header
-          className="sticky top-0 z-40 px-6 py-3.5"
-          style={{ background: 'rgba(7,7,9,0.7)', backdropFilter: 'blur(14px)', borderBottom: '1px solid var(--border)' }}
-        >
-          <div className="max-w-5xl mx-auto flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <Link href="/" aria-label="Stonky home">
-                <StonkyMark size={24} />
-              </Link>
-              <span className="hidden sm:inline text-xs" style={{ color: 'var(--faint)' }}>Discovery Chamber</span>
-            </div>
-            <div className="flex items-center gap-5">
-              <Link
-                href="/"
-                className="text-xs transition-colors"
-                style={{ color: 'var(--muted)' }}
-                onMouseEnter={e => (e.currentTarget.style.color = 'var(--text-2)')}
-                onMouseLeave={e => (e.currentTarget.style.color = 'var(--muted)')}
+      {/* Shared floating glass navbar + the one watchlist drawer it opens. */}
+      <StonkyNav active="discover" onOpenWatchlist={() => setWatchlistOpen(true)} watchlistCount={watchlistItems.length} />
+      <WatchlistControl open={watchlistOpen} onOpenChange={setWatchlistOpen} hideTrigger />
+
+      <div className="relative z-20 flex min-h-screen flex-col">
+        <main className="flex flex-1 flex-col">
+          <AnimatePresence mode="wait">
+            {phase !== 'deck' ? (
+              <motion.section
+                key="ask"
+                className="flex flex-1 flex-col items-center justify-center px-6 pb-8 pt-28"
+                initial={false} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -16 }}
+                transition={{ duration: 0.4 }}
               >
-                New search
-              </Link>
-              <WatchlistControl />
-            </div>
-          </div>
-        </header>
+                <div className="grid w-full max-w-4xl grid-cols-1 items-center gap-x-12 gap-y-6 md:grid-cols-[252px_1fr]">
+                  {/* Ticky guides from the side */}
+                  <div className="flex justify-center md:justify-start">
+                    <Ticky phase={tickyPhase} size="lg" bubble={bubble} onBubbleTyped={handleGreetingTyped} />
+                  </div>
 
-        <main className="flex-1 flex flex-col items-center justify-center px-6 py-10 max-w-2xl mx-auto w-full">
-          <div className="text-center mb-9">
-            <p className="eyebrow mb-3" style={{ color: 'var(--accent)' }}>Discover</p>
-            <h1 className="font-semibold" style={{ color: 'var(--text)', fontSize: 'clamp(1.6rem, 3.6vw, 2.2rem)', letterSpacing: '-0.03em' }}>
-              One stock at a time.
-            </h1>
-            <p className="text-sm mt-2" style={{ color: 'var(--muted)' }}>
-              Skip it, save it, or open the full report. Arrow keys work too.
-            </p>
-          </div>
+                  {/* chat + guidance */}
+                  <div className="flex flex-col items-center md:items-start">
+                    <p className="mb-2 text-xs font-semibold uppercase tracking-[0.24em]" style={{ color: '#3FB07C' }}>Discover</p>
+                    <h1 style={{ fontSize: 'clamp(2.5rem, 6vw, 3.8rem)', fontWeight: 800, letterSpacing: '-0.045em', lineHeight: 1 }}>
+                      <span style={{ color: 'var(--text)' }}>Ask </span>
+                      <span style={{ color: '#3FB07C', textShadow: '0 0 26px rgba(46,148,102,0.45)' }}>Ticky</span>
+                    </h1>
+                    <p className="mb-5 mt-3 max-w-md text-center text-sm md:text-left" style={{ color: 'var(--text-2)' }}>
+                      Tell Ticky what you&apos;re after, in plain English. He&apos;ll hunt down a deck worth your time.
+                    </p>
+                    <TickyChat onSubmit={handleSubmit} disabled={phase === 'thinking'} onFocusChange={handleChatFocus} />
+                  </div>
+                </div>
 
-          <div className="relative w-full" style={{ minHeight: 500, perspective: 1300 }}>
-            <AnimatePresence mode="popLayout">
-              {current ? (
-                <motion.div
-                  key={current.symbol}
-                  initial={reduced ? { opacity: 0 } : { opacity: 0, x: '-110vw', scale: 0.9, rotateY: 14, filter: 'blur(10px)' }}
-                  animate={reduced ? { opacity: 1 } : { opacity: 1, x: 0, scale: 1, y: 0, rotate: 0, rotateY: 0, filter: 'blur(0px)' }}
-                  exit={reduced ? { opacity: 0 } : { opacity: 0, x: '110vw', scale: 0.92, rotateY: -14, filter: 'blur(8px)' }}
-                  transition={{ duration: reduced ? 0.2 : 0.7, ease: [0.22, 1, 0.36, 1] }}
-                  drag={!reduced && currentReport && currentReport !== 'failed' ? 'x' : false}
-                  dragConstraints={{ left: 0, right: 0 }}
-                  dragElastic={0.6}
-                  onDragEnd={(_, info) => {
-                    if (info.offset.x < -120) skip()
-                    else if (info.offset.x > 120) addCurrent()
-                  }}
-                  style={{ cursor: currentReport && currentReport !== 'failed' ? 'grab' : 'default' }}
-                >
-                  {currentReport && currentReport !== 'failed' ? (
+                {/* How it works — a quiet 3-step guide so the flow is obvious */}
+                <div className="mt-12 grid w-full max-w-4xl grid-cols-1 gap-3 sm:grid-cols-3">
+                  {STEPS.map((s, i) => (
                     <motion.div
-                      animate={reduced ? undefined : { y: [0, -7, 0] }}
-                      transition={reduced ? undefined : { duration: 6.5, repeat: Infinity, ease: 'easeInOut' }}
+                      key={s.title}
+                      initial={{ opacity: 0, y: 12 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.3 + i * 0.1, duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+                      className="flex items-start gap-3 rounded-2xl p-4"
+                      style={{
+                        background: 'linear-gradient(180deg, rgba(18,24,21,0.5) 0%, rgba(9,12,11,0.55) 100%)',
+                        border: '1px solid rgba(63,176,124,0.16)',
+                        backdropFilter: 'blur(8px)',
+                      }}
                     >
-                      <TiltCard disabled={!!reduced}>
-                        <DeckCard entry={current} report={currentReport} saved={watched} accent={accent} />
-                      </TiltCard>
+                      <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg" style={{ background: 'rgba(46,148,102,0.14)', color: '#5FD296' }}>
+                        <s.icon className="h-4 w-4" />
+                      </span>
+                      <div>
+                        <p className="text-sm font-semibold" style={{ color: 'var(--text)' }}>
+                          <span style={{ color: 'rgba(95,210,150,0.6)', fontFamily: 'var(--font-mono)', marginRight: 6 }}>{i + 1}</span>
+                          {s.title}
+                        </p>
+                        <p className="mt-1 text-xs leading-relaxed" style={{ color: 'var(--muted)' }}>{s.body}</p>
+                      </div>
                     </motion.div>
-                  ) : (
-                    <LoadingCard symbol={current.symbol} />
-                  )}
-                </motion.div>
-              ) : (
-                <motion.div
-                  key="deck-end"
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
-                  className="flex flex-col items-center justify-center text-center gap-5"
-                  style={{ background: PANEL, border: '1px solid var(--border-2)', borderRadius: 18, minHeight: 420, color: INK, boxShadow: '0 40px 90px rgba(0,0,0,0.6)' }}
-                >
-                  <p className="font-semibold" style={{ fontSize: '1.4rem', letterSpacing: '-0.02em' }}>
-                    That is the whole deck.
-                  </p>
-                  <p style={{ fontSize: '0.92rem', color: SUB, maxWidth: 380, lineHeight: 1.6 }}>
-                    {watch.length > 0
-                      ? `You saved ${watch.length} ${watch.length === 1 ? 'stock' : 'stocks'}. Open the watchlist to deep dive.`
-                      : 'Nothing saved this round. Run it again or search a ticker directly.'}
-                  </p>
-                  <button
-                    onClick={() => setIdx(0)}
-                    className="px-5 py-2.5 rounded-full text-sm font-semibold transition-all"
-                    style={{ background: 'linear-gradient(180deg, var(--ivory) 0%, var(--ivory-2) 100%)', color: 'var(--ink)' }}
-                  >
-                    Restart deck
-                  </button>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
-
-          {skippedNote && (
-            <p className="text-xs mt-3" style={{ color: 'var(--muted)' }}>{skippedNote}</p>
-          )}
-
-          {/* Actions */}
-          {current && (
-            <div className="flex items-center justify-center gap-3 mt-8 flex-wrap">
-              <button
-                onClick={skip}
-                className="px-5 py-2.5 rounded-full text-sm transition-all"
-                style={{ background: 'var(--surface-2)', color: 'var(--text-2)' }}
-                onMouseEnter={e => { e.currentTarget.style.background = 'var(--surface-3)'; e.currentTarget.style.color = 'var(--text)' }}
-                onMouseLeave={e => { e.currentTarget.style.background = 'var(--surface-2)'; e.currentTarget.style.color = 'var(--text-2)' }}
+                  ))}
+                </div>
+              </motion.section>
+            ) : (
+              <motion.section
+                key="deck"
+                className="flex flex-1 flex-col items-center pt-20"
+                initial={false} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
+                transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
               >
-                Skip
-              </button>
-              <button
-                onClick={addCurrent}
-                disabled={!currentReport || currentReport === 'failed'}
-                className="px-5 py-2.5 rounded-full text-sm font-semibold transition-all"
-                style={{
-                  background: watched ? 'var(--surface-2)' : 'var(--accent-bg)',
-                  color: watched ? 'var(--muted)' : 'var(--accent-2)',
-                  opacity: !currentReport || currentReport === 'failed' ? 0.5 : 1,
-                }}
-              >
-                {watched ? 'In watchlist' : 'Add to watchlist'}
-              </button>
-              <button
-                onClick={() => current && deepDive(current.symbol)}
-                disabled={!currentReport || currentReport === 'failed'}
-                className="px-5 py-2.5 rounded-full text-sm font-semibold transition-all"
-                style={{
-                  background: 'linear-gradient(180deg, var(--ivory) 0%, var(--ivory-2) 100%)',
-                  color: 'var(--ink)',
-                  opacity: !currentReport || currentReport === 'failed' ? 0.5 : 1,
-                }}
-              >
-                Deep dive
-              </button>
-            </div>
-          )}
-
-          <p className="text-xs mt-10 text-center max-w-md" style={{ color: 'var(--faint)', lineHeight: 1.6 }}>
-            Educational scores from public data. Not a recommendation to buy, sell, or hold any security.
-          </p>
+                <Ticky phase={tickyPhase} size="sm" bubble={bubble} className="mb-1" />
+                {/* Quick reminder of the controls, so the deck is self-explanatory */}
+                <p className="mb-1 flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-[0.72rem]" style={{ color: 'var(--muted)' }}>
+                  <span className="inline-flex items-center gap-1.5"><Bookmark className="h-3 w-3" /> Add to watchlist</span>
+                  <span className="inline-flex items-center gap-1.5"><ArrowUpRight className="h-3 w-3" /> Deep dive into the full report</span>
+                </p>
+                <TickyDeck key={deckKey} deck={deck} summary={summary} onReset={handleReset} />
+              </motion.section>
+            )}
+          </AnimatePresence>
         </main>
       </div>
     </>

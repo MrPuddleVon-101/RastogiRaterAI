@@ -1,136 +1,49 @@
 'use client'
 import { useEffect, useRef, useState } from 'react'
 
-// A market-signal cursor trail, adapted from the 21st.dev SVG follower.
-// Reworked for Stonky:
-//  - fixed full-viewport overlay, pointer-events: none, never blocks clicks
-//  - listens on window (the overlay itself can never receive events)
-//  - restrained ivory/teal/gold palette, no rainbow, no recording mechanics
-//  - "calm" mode for the report page, disabled on touch devices and
-//    under prefers-reduced-motion
+// A market-signal cursor trail: a smooth, tapering comet ribbon behind the
+// pointer, in the restrained Stonky palette. Rebuilt from the old 21st.dev
+// filled-polygon follower, which flickered: it FILLED an open self-crossing
+// path and mutated point age twice per frame in its mirror loop, so fast
+// flicks produced glitchy bowtie shapes. This version:
+//  - samples at most one point per animation frame (stable density at any
+//    event rate, no pile-ups on coalesced pointermove)
+//  - draws layered STROKES through quadratic midpoints (always smooth, no
+//    fill, nothing to self-intersect)
+//  - trails expire by age with an eased tail, so stopping never wobbles
+//  - width breathes with cursor speed (calm drift = hairline, fast flick =
+//    charged streak)
+//  - sparks use WAAPI (element.animate), no CSS-transition timing races
+// Fixed overlay, pointer-events: none, disabled on touch / reduced motion.
 
-interface Position { x: number; y: number }
-
-interface TrailPoint {
-  position: Position
-  time: number
-  drift: Position
-  age: number
-  direction: Position
-}
+interface Pt { x: number; y: number; t: number }
 
 interface MarketCursorFollowerProps {
   /** full: home/discover. calm: report (thinner, quieter, no sparks). */
   intensity?: 'full' | 'calm'
 }
 
-class Follower {
-  private points: TrailPoint[] = []
-  private line: SVGPathElement
-  private color: string
-  private stage: SVGSVGElement
-  private removeDelay: number
-  private sparkChance: number
+interface Layer {
+  el: SVGPathElement
+  /** trail lifetime in ms (longer = longer tail) */
+  ttl: number
+  /** stroke width multiplier */
+  w: number
+}
 
-  constructor(stage: SVGSVGElement, color: string, removeDelay: number, sparkChance: number) {
-    this.stage = stage
-    this.color = color
-    this.removeDelay = removeDelay
-    this.sparkChance = sparkChance
-    this.line = document.createElementNS('http://www.w3.org/2000/svg', 'path')
-    this.line.style.fill = color
-    this.line.style.stroke = color
-    this.line.style.strokeWidth = '1'
-    this.stage.appendChild(this.line)
+function buildPath(pts: Pt[]): string {
+  if (pts.length < 2) return ''
+  // Quadratic smoothing through midpoints: M mid0 ... Q p[i] mid(i,i+1)
+  const d: string[] = []
+  const mx = (a: Pt, b: Pt) => `${(a.x + b.x) / 2} ${(a.y + b.y) / 2}`
+  d.push(`M ${pts[0].x} ${pts[0].y}`)
+  d.push(`L ${mx(pts[0], pts[1])}`)
+  for (let i = 1; i < pts.length - 1; i++) {
+    d.push(`Q ${pts[i].x} ${pts[i].y} ${mx(pts[i], pts[i + 1])}`)
   }
-
-  private getDrift(): number {
-    return (Math.random() - 0.5) * 2
-  }
-
-  add(position: Position) {
-    const direction = { x: 0, y: 0 }
-    if (this.points[0]) {
-      direction.x = (position.x - this.points[0].position.x) * 0.25
-      direction.y = (position.y - this.points[0].position.y) * 0.25
-    }
-
-    const point: TrailPoint = {
-      position,
-      time: Date.now(),
-      drift: {
-        x: this.getDrift() + direction.x / 2,
-        y: this.getDrift() + direction.y / 2,
-      },
-      age: 0,
-      direction,
-    }
-
-    // Occasional tiny spark, scaled to cursor speed. Never large shapes.
-    if (Math.random() < this.sparkChance) this.makeSpark(point)
-
-    this.points.unshift(point)
-    // hard cap so fast scrubbing can never build an expensive path
-    if (this.points.length > 60) this.points.length = 60
-  }
-
-  private createLine(points: TrailPoint[]): string {
-    const path: string[] = [points.length ? 'M' : '']
-    if (points.length > 0) {
-      let forward = true
-      let i = 0
-      while (i >= 0) {
-        const point = points[i]
-        const offsetX = point.direction.x * ((i - points.length) / points.length) * 0.55
-        const offsetY = point.direction.y * ((i - points.length) / points.length) * 0.55
-        const x = point.position.x + (forward ? offsetY : -offsetY)
-        const y = point.position.y + (forward ? offsetX : -offsetX)
-        point.age += 0.18
-        path.push(String(x + point.drift.x * point.age))
-        path.push(String(y + point.drift.y * point.age))
-        i += forward ? 1 : -1
-        if (i === points.length) {
-          i--
-          forward = false
-        }
-      }
-    }
-    return path.join(' ')
-  }
-
-  trim() {
-    if (this.points.length > 0) {
-      const last = this.points[this.points.length - 1]
-      if (last.time < Date.now() - this.removeDelay) this.points.pop()
-    }
-    this.line.setAttribute('d', this.createLine(this.points))
-  }
-
-  private makeSpark(point: TrailPoint) {
-    const speed = Math.abs(point.direction.x) + Math.abs(point.direction.y)
-    if (speed < 2) return
-    const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle')
-    circle.setAttribute('r', String(Math.min(speed * 0.5, 3)))
-    circle.style.fill = this.color
-    circle.setAttribute('cx', '0')
-    circle.setAttribute('cy', '0')
-    this.stage.appendChild(circle)
-
-    const driftX = point.position.x + point.direction.x * (Math.random() * 14)
-    const driftY = point.position.y + point.direction.y * (Math.random() * 14)
-    circle.style.transform = `translate(${point.position.x}px, ${point.position.y}px)`
-    circle.style.transition = 'all 0.6s ease-out'
-    setTimeout(() => {
-      circle.style.transform = `translate(${driftX}px, ${driftY}px) scale(0)`
-      setTimeout(() => {
-        if (this.stage.contains(circle)) this.stage.removeChild(circle)
-      }, 600)
-    }, 10)
-  }
-
-  destroy() {
-    if (this.stage.contains(this.line)) this.stage.removeChild(this.line)
-  }
+  const last = pts[pts.length - 1]
+  d.push(`L ${last.x} ${last.y}`)
+  return d.join(' ')
 }
 
 export function MarketCursorFollower({ intensity = 'full' }: MarketCursorFollowerProps) {
@@ -138,7 +51,6 @@ export function MarketCursorFollower({ intensity = 'full' }: MarketCursorFollowe
   const [enabled, setEnabled] = useState(false)
 
   useEffect(() => {
-    // Touch-primary devices and reduced-motion users get no trail at all.
     const coarse = window.matchMedia('(pointer: coarse)').matches
     const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches
     setEnabled(!coarse && !reduced)
@@ -150,16 +62,26 @@ export function MarketCursorFollower({ intensity = 'full' }: MarketCursorFollowe
     if (!svg) return
 
     const calm = intensity === 'calm'
-    const palette = calm
-      ? [{ color: 'rgba(236,230,218,0.30)', spark: 0 }]
-      : [
-          { color: 'rgba(236,230,218,0.42)', spark: 0.05 },
-          { color: 'rgba(96,138,132,0.34)', spark: 0.04 },
-          { color: 'rgba(201,162,76,0.22)', spark: 0.06 },
-        ]
-    const removeDelay = calm ? 240 : 380
+    const NS = 'http://www.w3.org/2000/svg'
 
-    const followers = palette.map(p => new Follower(svg, p.color, removeDelay, p.spark))
+    // Layered comet: a faint wide teal aura, the ivory core, a short gold tip.
+    const spec = calm
+      ? [{ color: 'rgba(236,230,218,0.26)', ttl: 260, w: 1.6 }]
+      : [
+          { color: 'rgba(96,138,132,0.20)', ttl: 460, w: 4.6 },
+          { color: 'rgba(236,230,218,0.5)', ttl: 380, w: 1.9 },
+          { color: 'rgba(220,190,110,0.4)', ttl: 150, w: 1.0 },
+        ]
+
+    const layers: Layer[] = spec.map(s => {
+      const el = document.createElementNS(NS, 'path')
+      el.setAttribute('fill', 'none')
+      el.setAttribute('stroke', s.color)
+      el.setAttribute('stroke-linecap', 'round')
+      el.setAttribute('stroke-linejoin', 'round')
+      svg.appendChild(el)
+      return { el, ttl: s.ttl, w: s.w }
+    })
 
     const resize = () => {
       svg.setAttribute('width', String(window.innerWidth))
@@ -168,25 +90,87 @@ export function MarketCursorFollower({ intensity = 'full' }: MarketCursorFollowe
     resize()
     window.addEventListener('resize', resize)
 
+    // Latest pointer position; sampled once per frame in the rAF loop.
+    let px = -1
+    let py = -1
+    let hasPointer = false
+    let speed = 0 // smoothed px/frame, drives width + sparks
+    const pts: Pt[] = [] // newest first
+    const maxTtl = Math.max(...layers.map(l => l.ttl))
+
     const onMove = (e: PointerEvent) => {
       if (e.pointerType === 'touch') return
-      const position = { x: e.clientX, y: e.clientY }
-      followers.forEach(f => f.add(position))
+      px = e.clientX
+      py = e.clientY
+      hasPointer = true
     }
     window.addEventListener('pointermove', onMove, { passive: true })
 
-    let raf = 0
-    const animate = () => {
-      followers.forEach(f => f.trim())
-      raf = requestAnimationFrame(animate)
+    const spark = (x: number, y: number, vx: number, vy: number) => {
+      const c = document.createElementNS(NS, 'circle')
+      const r = Math.min(1.2 + speed * 0.06, 2.6)
+      c.setAttribute('r', String(r))
+      c.setAttribute('fill', Math.random() < 0.5 ? 'rgba(236,230,218,0.7)' : 'rgba(201,162,76,0.6)')
+      c.setAttribute('cx', String(x))
+      c.setAttribute('cy', String(y))
+      svg.appendChild(c)
+      const jitter = () => (Math.random() - 0.5) * 30
+      const anim = c.animate(
+        [
+          { transform: 'translate(0px, 0px) scale(1)', opacity: 1 },
+          { transform: `translate(${vx * 6 + jitter()}px, ${vy * 6 + jitter()}px) scale(0)`, opacity: 0 },
+        ],
+        { duration: 520, easing: 'cubic-bezier(0.22, 1, 0.36, 1)' },
+      )
+      anim.onfinish = () => { if (svg.contains(c)) svg.removeChild(c) }
     }
-    raf = requestAnimationFrame(animate)
+
+    let raf = 0
+    let lastSpark = 0
+    const tick = () => {
+      raf = requestAnimationFrame(tick)
+      const now = performance.now()
+
+      if (hasPointer) {
+        const head = pts[0]
+        const dx = head ? px - head.x : 0
+        const dy = head ? py - head.y : 0
+        const dist = head ? Math.hypot(dx, dy) : 0
+        speed += ((head ? dist : 0) - speed) * 0.2
+
+        // Sample only when the pointer actually moved: an idle cursor keeps a
+        // still, shrinking tail instead of a wobbling knot.
+        if (!head || dist > 1.5) {
+          pts.unshift({ x: px, y: py, t: now })
+          if (pts.length > 42) pts.length = 42
+          // charged flicks shed the occasional spark
+          if (!calm && speed > 14 && now - lastSpark > 90 && Math.random() < 0.4) {
+            lastSpark = now
+            spark(px, py, dx / (dist || 1), dy / (dist || 1))
+          }
+        }
+      }
+
+      // expire old points
+      while (pts.length && now - pts[pts.length - 1].t > maxTtl) pts.pop()
+
+      for (const layer of layers) {
+        // each layer draws only the points young enough for its own tail
+        let n = pts.length
+        while (n > 0 && now - pts[n - 1].t > layer.ttl) n--
+        const slice = pts.slice(0, n)
+        layer.el.setAttribute('d', buildPath(slice))
+        const w = layer.w * (0.7 + Math.min(speed * 0.045, 1.3))
+        layer.el.setAttribute('stroke-width', String(w))
+      }
+    }
+    raf = requestAnimationFrame(tick)
 
     return () => {
       window.removeEventListener('resize', resize)
       window.removeEventListener('pointermove', onMove)
       cancelAnimationFrame(raf)
-      followers.forEach(f => f.destroy())
+      layers.forEach(l => { if (svg.contains(l.el)) svg.removeChild(l.el) })
     }
   }, [enabled, intensity])
 

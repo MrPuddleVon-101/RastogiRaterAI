@@ -135,7 +135,7 @@ class Particle {
 
 export function ParticleTextEffect({ title, tagline, className, startAt = 0, onReady }: ParticleTextEffectProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
-  const rafRef = useRef<number>()
+  const rafRef = useRef<number | undefined>(undefined)
   const onReadyRef = useRef(onReady)
   onReadyRef.current = onReady
 
@@ -155,7 +155,15 @@ export function ParticleTextEffect({ title, tagline, className, startAt = 0, onR
     let start = 0
     let ready = false
 
-    const sampleText = (text: string, fontPx: number, stride: number, weight: number): Vec[] => {
+    // The particle targets are sampled from rasterised text, so this has to be
+    // the family the page actually renders in. It used to be hardcoded to
+    // Inter; once the app moved to Schibsted Grotesk that silently sampled a
+    // fallback face and the letterforms stopped matching the brand.
+    const uiFont =
+      getComputedStyle(document.documentElement).getPropertyValue('--font-sans').trim() ||
+      'system-ui'
+
+    const sampleText = (text: string, fontPx: number, stride: number, weight: number, yBias = 0.5): Vec[] => {
       const off = document.createElement('canvas')
       off.width = Math.max(1, Math.floor(W))
       off.height = Math.max(1, Math.floor(H))
@@ -164,14 +172,16 @@ export function ParticleTextEffect({ title, tagline, className, startAt = 0, onR
       octx.fillStyle = '#fff'
       // Shrink until the rendered text genuinely fits with margin: never clipped.
       let px = fontPx
-      octx.font = `${weight} ${px}px Inter, system-ui, sans-serif`
-      while (px > 18 && octx.measureText(text).width > W * 0.92) {
+      octx.font = `${weight} ${px}px ${uiFont}, system-ui, sans-serif`
+      while (px > 18 && octx.measureText(text).width > W * 0.94) {
         px -= 2
-        octx.font = `${weight} ${px}px Inter, system-ui, sans-serif`
+        octx.font = `${weight} ${px}px ${uiFont}, system-ui, sans-serif`
       }
       octx.textAlign = 'center'
       octx.textBaseline = 'middle'
-      octx.fillText(text, off.width / 2, off.height / 2)
+      // yBias > 0.5 seats the word lower in the stage (the hero brand sits low
+      // and dominant, clear of the navbar's airspace).
+      octx.fillText(text, off.width / 2, off.height * yBias)
       const data = octx.getImageData(0, 0, off.width, off.height).data
       const pts: Vec[] = []
       for (let y = 0; y < off.height; y += stride) {
@@ -203,10 +213,11 @@ export function ParticleTextEffect({ title, tagline, className, startAt = 0, onR
       canvas.height = Math.floor(H * dpr)
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
 
-      // Brand is larger and denser than the tagline.
-      const brandFont = Math.max(40, Math.min(170, (W / Math.max(title.length, 1)) * 1.78))
+      // Brand is larger and denser than the tagline: the dominant object of the
+      // hero. Seated low in the stage (yBias 0.62) so it owns the fold.
+      const brandFont = Math.max(56, Math.min(258, (W / Math.max(title.length, 1)) * 2.5))
       const tagFont = Math.max(22, Math.min(82, (W / Math.max(tagline.length, 1)) * 1.5))
-      brandTargets = sampleText(title, brandFont, 4, 800)
+      brandTargets = sampleText(title, brandFont, 4, 800, 0.62)
       tagTargets = sampleText(tagline, tagFont, 5, 700)
 
       const N = Math.max(brandTargets.length, tagTargets.length, 1)
@@ -216,8 +227,8 @@ export function ParticleTextEffect({ title, tagline, className, startAt = 0, onR
           const p = new Particle()
           p.pos = { x: Math.random() * W, y: Math.random() * H }
           p.target = { x: Math.random() * W, y: Math.random() * H }
-          p.maxSpeed = Math.random() * 3 + 3.2
-          p.maxForce = p.maxSpeed * 0.055
+          p.maxSpeed = Math.random() * 4 + 6.5
+          p.maxForce = p.maxSpeed * 0.09
           p.size = Math.random() * 1.2 + 1.6
           pool.push(p)
         }
@@ -228,6 +239,14 @@ export function ParticleTextEffect({ title, tagline, className, startAt = 0, onR
         onReadyRef.current?.()
       }
     }
+
+    // The loop parks itself once the brand has locked AND the field has
+    // actually stopped moving. Driving this off measured velocity rather than
+    // a fixed delay means a slow first paint can never freeze the wordmark
+    // half-formed.
+    const STILL_SPEED = 0.06   // px/frame, averaged across the pool
+    const STILL_FRAMES = 45    // consecutive still frames before parking
+    let stillCount = 0
 
     const enterPhase = (name: string) => {
       if (phase === name) return
@@ -252,7 +271,7 @@ export function ParticleTextEffect({ title, tagline, className, startAt = 0, onR
     build()
     start = performance.now() - startAt * 1000
 
-    const onResize = () => build()
+    const onResize = () => { build(); kick() }
     window.addEventListener('resize', onResize)
 
     const draw = (now: number) => {
@@ -296,13 +315,34 @@ export function ParticleTextEffect({ title, tagline, className, startAt = 0, onR
         p.draw(ctx, isExtra ? alpha * 0.16 : alpha, trail && !isExtra)
       }
 
+      // The wordmark locks and then never changes again, but the loop used to
+      // keep repainting that identical frame 60-120x a second for the rest of
+      // the session. Park once it has locked and come to rest; the canvas keeps
+      // the last painted frame on screen.
+      if (t > T.brandFormEnd) {
+        let speed = 0
+        for (let i = 0; i < pool.length; i++) {
+          const v = pool[i].vel
+          speed += Math.abs(v.x) + Math.abs(v.y)
+        }
+        stillCount = speed / pool.length < STILL_SPEED ? stillCount + 1 : 0
+        if (stillCount >= STILL_FRAMES) {
+          rafRef.current = undefined
+          return
+        }
+      }
+
       rafRef.current = requestAnimationFrame(draw)
     }
-    rafRef.current = requestAnimationFrame(draw)
+    const kick = () => {
+      if (rafRef.current === undefined) rafRef.current = requestAnimationFrame(draw)
+    }
+    kick()
 
     return () => {
       window.removeEventListener('resize', onResize)
       if (rafRef.current) cancelAnimationFrame(rafRef.current)
+      rafRef.current = undefined
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [title, tagline, startAt])

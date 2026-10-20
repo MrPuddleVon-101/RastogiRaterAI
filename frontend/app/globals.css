@@ -1,4 +1,3 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&family=JetBrains+Mono:wght@400;500;600&display=swap');
 @import "tw-animate-css";
 
 @tailwind base;
@@ -10,15 +9,15 @@
   --bg:              #070709;
   --bg-2:            #0A0B0E;
   --surface:         #101216;
-  --surface-2:       #15171D;
-  --surface-3:       #1B1E25;
-  --elevated:        #1E222B;
-  --elevated-2:      #242833;
+  --surface-2:       #171A21;
+  --surface-3:       #1E222B;
+  --elevated:        #252A35;
+  --elevated-2:      #2F3540;
 
   /* Hairlines, used sparingly */
   --border:          #1A1D24;
   --border-2:        #23272F;
-  --border-3:        #2F343F;
+  --border-3:        #3A4150;
 
   /* Ivory editorial surfaces (used intentionally, not everywhere) */
   --ivory:           #ECE6DA;
@@ -29,23 +28,56 @@
   /* Text */
   --text:            #ECE7DF;
   --text-2:          #ACA79F;
-  --muted:           #6A6E78;
+  --muted:           #8A91A0;
   --faint:           #3A3E47;
 
-  /* Semantic */
-  --pos:             #2E9466;
-  --pos-soft:        #1C5E40;
-  --pos-bg:          rgba(46, 148, 102, 0.10);
-  --neg:             #B23A3A;
-  --neg-soft:        #6E2424;
-  --neg-bg:          rgba(178, 58, 58, 0.10);
-  --caut:            #C09A3E;
-  --caut-soft:       #6E5A22;
-  --caut-bg:         rgba(192, 154, 62, 0.10);
+  /* Semantic signals.
+     These were all muted (#2E9466 / #B23A3A / #C09A3E) which, on a near-black
+     canvas, is the single biggest reason the app read as flat and lifeless:
+     low-chroma colour on low-chroma ground has nothing to push against. They
+     are now genuinely vivid, with a matching glow token so a signal can light
+     its own surroundings instead of sitting on them. */
+  --pos:             #34E39B;
+  --pos-soft:        #148A5C;
+  --pos-bg:          rgba(52, 227, 155, 0.13);
+  --pos-glow:        rgba(52, 227, 155, 0.40);
 
-  --accent:          #C9A24C;
-  --accent-2:        #DCBE6E;
-  --accent-bg:       rgba(201, 162, 76, 0.08);
+  --neg:             #FF6B5A;
+  --neg-soft:        #8E2F26;
+  --neg-bg:          rgba(255, 107, 90, 0.13);
+  --neg-glow:        rgba(255, 107, 90, 0.38);
+
+  --caut:            #FFC247;
+  --caut-soft:       #8A651A;
+  --caut-bg:         rgba(255, 194, 71, 0.13);
+  --caut-glow:       rgba(255, 194, 71, 0.36);
+
+  /* Two further hues so six categories never repeat a colour, and so the UI
+     has more than one note to play. */
+  --info:            #46D6F5;
+  --info-bg:         rgba(70, 214, 245, 0.13);
+  --info-glow:       rgba(70, 214, 245, 0.36);
+
+  --violet:          #A98BFF;
+  --violet-bg:       rgba(169, 139, 255, 0.13);
+  --violet-glow:     rgba(169, 139, 255, 0.36);
+
+  --accent:          #FFC247;
+  --accent-2:        #FFD98A;
+  --accent-bg:       rgba(255, 194, 71, 0.11);
+
+  /* Brand emerald, kept distinct from the "positive" signal. */
+  --brand:           #34E39B;
+  --brand-deep:      #10B981;
+  --brand-glow:      rgba(52, 227, 155, 0.45);
+
+  /* Depth. A consistent overhead light source: every raised surface gets a
+     lit top edge and a cast shadow, which is what actually reads as 3D. */
+  --lip:             inset 0 1px 0 rgba(255,255,255,0.10);
+  --lip-strong:      inset 0 1px 0 rgba(255,255,255,0.16);
+  --raise-1:         0 2px 6px rgba(0,0,0,0.42), var(--lip);
+  --raise-2:         0 10px 26px rgba(0,0,0,0.50), var(--lip);
+  --raise-3:         0 26px 60px rgba(0,0,0,0.58), var(--lip-strong);
 
   /* Elevation */
   --shadow-sm:  0 1px 2px rgba(0,0,0,0.40);
@@ -53,8 +85,13 @@
   --shadow-lg:  0 28px 70px rgba(0,0,0,0.55), 0 4px 14px rgba(0,0,0,0.4);
   --shadow-ivory: 0 24px 60px rgba(0,0,0,0.5), 0 2px 0 rgba(255,255,255,0.04) inset;
 
-  --font-sans:  'Inter', system-ui, -apple-system, sans-serif;
-  --font-mono:  'JetBrains Mono', 'Fira Mono', 'Consolas', monospace;
+  /* --font-sans / --font-mono are owned by next/font (see app/layout.tsx),
+     which sets them on <html> to its self-hosted, size-adjusted families.
+     Declaring the literal names here would shadow those values and silently
+     fall back to a system face, so only the generic tails live here. */
+  --font-fallback-sans: system-ui, -apple-system, sans-serif;
+  --font-fallback-display: Georgia, 'Times New Roman', serif;
+  --font-fallback-mono: 'SFMono-Regular', 'Consolas', monospace;
 }
 
 html { background-color: var(--bg); }
@@ -62,7 +99,7 @@ html { background-color: var(--bg); }
 body {
   background-color: var(--bg);
   color: var(--text);
-  font-family: var(--font-sans);
+  font-family: var(--font-sans), var(--font-fallback-sans);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
@@ -77,13 +114,86 @@ body {
 @layer base {
   * { border-color: var(--border); }
   body { background-color: var(--bg); color: var(--text); }
-  html { font-family: var(--font-sans); }
+  html { font-family: var(--font-sans), var(--font-fallback-sans); }
+}
+
+
+/* ---- Type system ----------------------------------------------------------
+   One family, real weight + size contrast. The old page set every heading to
+   600/54px, which is exactly why it read flat. Display type now sits at
+   450-500 (light type on near-black reads heavier than it measures) and each
+   tier steps by >=1.25x so hierarchy is legible before you read a word.
+   Light-on-dark also gets extra line-height per the brand reference.        */
+
+.t-hero {
+  font-family: var(--font-display), Georgia, serif;
+  font-size: clamp(2.75rem, 6.4vw, 5.25rem);
+  font-weight: 500;
+  letter-spacing: -0.018em;
+  line-height: 1.04;
+  text-wrap: balance;
+}
+
+.t-section {
+  font-family: var(--font-display), Georgia, serif;
+  font-size: clamp(2rem, 4.3vw, 3.35rem);
+  font-weight: 500;
+  letter-spacing: -0.012em;
+  line-height: 1.12;
+  text-wrap: balance;
+}
+
+.t-sub {
+  font-size: clamp(1.3rem, 2.1vw, 1.7rem);
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  line-height: 1.22;
+  text-wrap: balance;
+}
+
+/* Supporting paragraph under a display line. Capped at a readable measure. */
+.t-lead {
+  font-size: clamp(1rem, 1.25vw, 1.125rem);
+  font-weight: 400;
+  line-height: 1.62;
+  letter-spacing: -0.005em;
+  color: var(--text-2);
+  max-width: 62ch;
+  text-wrap: pretty;
+}
+
+.t-body {
+  font-size: 0.975rem;
+  font-weight: 400;
+  line-height: 1.68;
+  color: var(--text-2);
+  max-width: 68ch;
+  text-wrap: pretty;
+}
+
+/* Small mechanical label for data chrome. Replaces the tracked-uppercase
+   eyebrow that used to sit above every single section. Use sparingly. */
+.t-label {
+  font-family: var(--font-mono), var(--font-fallback-mono);
+  font-size: 0.7rem;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Every figure on the site: tabular so columns of numbers never shift. */
+.t-num {
+  font-family: var(--font-mono), var(--font-fallback-mono);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum' 1, 'zero' 1;
+  letter-spacing: -0.01em;
 }
 
 /* ---- Utilities ---- */
 
 .num {
-  font-family: var(--font-mono);
+  font-family: var(--font-mono), var(--font-fallback-mono);
   font-variant-numeric: tabular-nums;
 }
 
@@ -204,6 +314,86 @@ body {
   transform: translateY(-3px);
 }
 
+/* ---- Lenis smooth scroll (landing only; classes exist only while mounted) ---- */
+html.lenis,
+html.lenis body { height: auto; }
+.lenis.lenis-smooth { scroll-behavior: auto !important; }
+.lenis.lenis-smooth [data-lenis-prevent] { overscroll-behavior: contain; }
+.lenis.lenis-stopped { overflow: hidden; }
+
+/* ---- Landing polish utilities ---- */
+
+/* Premium card: soft surface that lifts and lights its border on hover. */
+.lp-card {
+  position: relative;
+  border: 1px solid var(--border-2);
+  background: linear-gradient(180deg, var(--surface-2) 0%, var(--surface) 100%);
+  transition: transform 0.5s cubic-bezier(0.22, 1, 0.36, 1),
+    border-color 0.5s ease, box-shadow 0.5s ease;
+  will-change: transform;
+}
+.lp-card:hover {
+  transform: translateY(-4px);
+  border-color: var(--border-3);
+  box-shadow: 0 22px 50px rgba(0, 0, 0, 0.45);
+}
+/* Emerald-tinted variant of the hover glow. */
+.lp-card--emerald:hover {
+  border-color: rgba(63, 176, 124, 0.4);
+  box-shadow: 0 22px 60px rgba(46, 148, 102, 0.18);
+}
+
+/* Slow drifting sheen used on cinematic image blocks. */
+@keyframes lp-sheen {
+  0% { transform: translateX(-120%) skewX(-12deg); }
+  100% { transform: translateX(240%) skewX(-12deg); }
+}
+.lp-sheen::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(
+    100deg,
+    transparent 35%,
+    rgba(255, 255, 255, 0.06) 50%,
+    transparent 65%
+  );
+  transform: translateX(-120%) skewX(-12deg);
+}
+.lp-sheen:hover::after { animation: lp-sheen 1.1s ease forwards; }
+
+/* Edge fade mask for marquees so items dissolve at both ends. */
+.lp-edge-fade {
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 9%, #000 91%, transparent);
+  mask-image: linear-gradient(90deg, transparent, #000 9%, #000 91%, transparent);
+}
+
+/* Soft float for the hero scroll cue. */
+@keyframes lp-cue {
+  0%, 100% { transform: translateY(0); opacity: 0.5; }
+  50% { transform: translateY(6px); opacity: 1; }
+}
+.lp-cue { animation: lp-cue 2.4s ease-in-out infinite; }
+
+/* ---- Scroll Reel Testimonials (per-character rise + block exit) ---- */
+@keyframes scroll-reel-char-rise {
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes scroll-reel-exit {
+  from { opacity: 1; transform: translateY(0); }
+  to { opacity: 0; transform: translateY(-12px); }
+}
+.scroll-reel-char {
+  display: inline-block;
+  opacity: 0;
+  transform: translateY(0.6em);
+  animation: scroll-reel-char-rise 0.55s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+.scroll-reel-exit { animation: scroll-reel-exit 240ms cubic-bezier(0.65, 0, 0.35, 1) forwards; }
+/* While exiting, kill in-flight character rises so the block fades as a whole. */
+.scroll-reel-exit .scroll-reel-char { animation: none; opacity: 1; transform: none; }
+
 /* Respect reduced motion: show everything immediately, no drift */
 @media (prefers-reduced-motion: reduce) {
   .rr-fade-up,
@@ -213,7 +403,8 @@ body {
     transform: none !important;
   }
   .rr-scroll-pulse,
-  .rr-glow {
+  .rr-glow,
+  .lp-cue {
     animation: none !important;
   }
   .rr-sweep {
@@ -221,7 +412,15 @@ body {
     opacity: 0 !important;
   }
   .rr-lift,
-  .rr-lift:hover {
+  .rr-lift:hover,
+  .lp-card,
+  .lp-card:hover {
+    transform: none !important;
+  }
+  .lp-sheen:hover::after { animation: none !important; }
+  .scroll-reel-char {
+    animation: none !important;
+    opacity: 1 !important;
     transform: none !important;
   }
 }

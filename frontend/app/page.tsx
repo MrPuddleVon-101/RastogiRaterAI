@@ -1,14 +1,12 @@
 'use client'
 import { useState, useRef, useEffect, useCallback } from 'react'
-import { motion, useReducedMotion } from 'motion/react'
-import Link from 'next/link'
+import { motion } from 'motion/react'
 import { RatingResponse } from '@/lib/types'
 import { fetchReportCached } from '@/lib/reportCache'
+// (Link and StonkyMark moved into the shared StonkyNav)
 import { ParticleIntro } from '@/components/ParticleIntro'
-import { GooeyBackground } from '@/components/GooeyBackground'
 import { TickerInput } from '@/components/TickerInput'
 import { TerminalLoader } from '@/components/TerminalLoader'
-import { ScoreHero } from '@/components/ScoreHero'
 import { CockpitChart } from '@/components/CockpitChart'
 import { IntelligenceRail } from '@/components/IntelligenceRail'
 import { ValuationContext } from '@/components/ValuationContext'
@@ -16,14 +14,23 @@ import { ScoreDNA } from '@/components/ScoreDNA'
 import { ScoreContext } from '@/components/ScoreContext'
 import { EvidenceTable } from '@/components/EvidenceTable'
 import { WatchlistControl } from '@/components/WatchlistControl'
+import { useWatchlist } from '@/lib/watchlist'
 import { StockMarketStrip } from '@/components/StockMarketStrip'
-import { Disclaimer } from '@/components/Disclaimer'
-import { ReportAura } from '@/components/ReportAura'
-import { StonkyMark } from '@/components/StonkyMark'
 import { Typewriter } from '@/components/ui/typewriter'
-import { MarketCursorFollower } from '@/components/MarketCursorFollower'
-import QuantGridBackground from '@/components/ui/quant-grid-background'
-import SpotlightBackground from '@/components/ui/spotlight-background'
+import { Disclaimer } from '@/components/Disclaimer'
+import { Verdict } from '@/components/report/Verdict'
+import { Disclosure } from '@/components/report/Disclosure'
+import { ReportAura } from '@/components/ReportAura'
+import { Atmosphere } from '@/components/Atmosphere'
+import { SmoothScroll } from '@/components/SmoothScroll'
+import { StonkyNav } from '@/components/StonkyNav'
+import { HeroPortraits } from '@/components/landing/HeroPortraits'
+import { ProductStory } from '@/components/landing/ProductStory'
+import { SignupCTA } from '@/components/landing/SignupCTA'
+import { LandingFooter } from '@/components/landing/LandingFooter'
+import { LandingSmoothScroll } from '@/components/landing/LandingSmoothScroll'
+import { ScrollProgress } from '@/components/landing/ScrollProgress'
+import { TokenCounter } from '@/components/landing/TokenCounter'
 
 function ErrorPanel({ message }: { message: string }) {
   const friendly =
@@ -46,31 +53,14 @@ function ErrorPanel({ message }: { message: string }) {
 // not see the flag the first one just wrote and wrongly skip the intro).
 let introDecision: boolean | null = null
 
-// Slow, deliberate section reveal shared by every report panel.
-// Panels tilt up out of the page slightly, like evidence laid on a board.
-function Reveal({ children }: { children: React.ReactNode }) {
-  const reduced = useReducedMotion()
-  return (
-    <div style={{ perspective: 1400 }}>
-      <motion.div
-        initial={reduced ? { opacity: 0 } : { opacity: 0, y: 44, rotateX: 5 }}
-        whileInView={reduced ? { opacity: 1 } : { opacity: 1, y: 0, rotateX: 0 }}
-        viewport={{ once: true, margin: '-90px' }}
-        transition={{ duration: 0.9, ease: [0.22, 1, 0.36, 1] }}
-        style={{ transformOrigin: '50% 100%' }}
-      >
-        {children}
-      </motion.div>
-    </div>
-  )
-}
-
 export default function Home() {
   const [results, setResults] = useState<RatingResponse | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   // null = not yet resolved (one dark frame), true = repeat visit or deep dive
   const [introSeen, setIntroSeen] = useState<boolean | null>(null)
+  const [watchlistOpen, setWatchlistOpen] = useState(false)
+  const { items: watchlistItems } = useWatchlist()
   const reportRef = useRef<HTMLDivElement>(null)
 
   const handleSubmit = useCallback(async (ticker: string) => {
@@ -106,14 +96,26 @@ export default function Home() {
     if (ticker) handleSubmit(ticker)
   }, [handleSubmit])
 
+  // Every new report must open at the very top — no preserved or partial scroll
+  // from the previous ticker, the landing page, or a deep-dive link. We take
+  // manual control of the browser's scroll restoration and force the top across
+  // the loading frame and again when results land, resetting Lenis (if any) and
+  // the window together. Keyed on the displayed ticker so each fresh search
+  // re-runs it, whether triggered from the hero, another page, or in-report.
+  const onReportView = Boolean(results || loading)
   useEffect(() => {
-    if (results && reportRef.current) {
-      const t = setTimeout(() => {
-        reportRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-      }, 140)
-      return () => clearTimeout(t)
+    if (!onReportView) return
+    if ('scrollRestoration' in window.history) window.history.scrollRestoration = 'manual'
+    const toTop = () => {
+      const lenis = (window as unknown as { __lenis?: { scrollTo: (t: number, o?: object) => void } }).__lenis
+      lenis?.scrollTo(0, { immediate: true, force: true })
+      window.scrollTo(0, 0)
     }
-  }, [results])
+    toTop()
+    // run once more after layout settles so a late reflow can't strand the view
+    const r = requestAnimationFrame(toTop)
+    return () => cancelAnimationFrame(r)
+  }, [onReportView, loading, results?.ticker])
 
   const newSearch = () => {
     setResults(null)
@@ -123,67 +125,46 @@ export default function Home() {
     } catch { /* cosmetic */ }
   }
 
-  const navDelay = introSeen ? 0.4 : 9.4
-  const onReport = Boolean(results || loading)
-
   return (
     <>
-      {/* Global cinematic backdrop: dark quant grid + cursor spotlight */}
-      <QuantGridBackground />
-      <SpotlightBackground />
-      {/* Signal trail: lively on the landing stage, calm over the dossier */}
-      <MarketCursorFollower intensity={onReport ? 'calm' : 'full'} />
+      {/* One static ambient layer for the whole app: grid, bloom, grain.
+          Replaces the canvas grid + cursor spotlight + signal trail, which
+          together ran three always-on rAF loops behind every page. */}
+      <Atmosphere />
 
       {!results && !loading ? (
         <div key="landing" className="relative z-20">
-          {/* Minimal landing nav, revealed after the intro */}
-          <nav
-            className="absolute top-0 left-0 right-0 z-30 flex items-center justify-between px-6 py-5 rr-fade-up"
-            style={{ animationDelay: `${navDelay}s` }}
-          >
-            <StonkyMark size={28} />
-            <div className="flex items-center gap-5">
-              <Link
-                href="/discover"
-                className="text-xs tracking-[0.14em] uppercase transition-colors"
-                style={{ color: 'var(--muted)' }}
-                onMouseEnter={e => (e.currentTarget.style.color = 'var(--accent-2)')}
-                onMouseLeave={e => (e.currentTarget.style.color = 'var(--muted)')}
-              >
-                Discover stocks
-              </Link>
-              <WatchlistControl onSelect={handleSubmit} />
-            </div>
-          </nav>
+          {/* Premium Lenis smooth scroll + read-progress rail (landing only) */}
+          <LandingSmoothScroll />
+          <ScrollProgress />
+
+          {/* Floating glass pill navbar (shared across all pages) */}
+          <StonkyNav active="home" onOpenWatchlist={() => setWatchlistOpen(true)} watchlistCount={watchlistItems.length} />
+
+          {/* Shared watchlist drawer, driven by the navbar */}
+          <WatchlistControl open={watchlistOpen} onOpenChange={setWatchlistOpen} hideTrigger onSelect={handleSubmit} />
 
           <div className="relative overflow-hidden" style={{ minHeight: '100vh' }}>
-            <GooeyBackground />
+            <HeroPortraits />
             {introSeen === null ? (
               // Dark stage while the session intro flag resolves (one frame).
               <div style={{ minHeight: '100vh' }} />
             ) : (
               <ParticleIntro skipIntro={introSeen}>
-                {/* Brand line: fixed prefix, rotating finance phrase */}
+                {/* Rotating brand line, just under the Stonky title */}
                 <p
-                  className="text-center mb-8"
-                  style={{ color: 'var(--text-2)', fontSize: 'clamp(1.05rem, 2.2vw, 1.35rem)', fontWeight: 500, letterSpacing: '-0.01em' }}
+                  className="text-center mb-8 sm:mb-10"
+                  style={{ fontSize: 'clamp(1.05rem, 2.3vw, 1.5rem)', letterSpacing: '-0.01em', fontWeight: 500 }}
                 >
-                  Built to{' '}
+                  <span style={{ color: 'var(--text-2)' }}>Built to </span>
                   <span style={{ color: '#5FBF8A' }}>
                     <Typewriter
-                      text={[
-                        'invest smarter',
-                        'research faster',
-                        'compare clearly',
-                        'discover stocks',
-                        'think colder',
-                        'pressure-test the story',
-                      ]}
-                      speed={62}
-                      waitTime={1800}
+                      text={['research faster.', 'read the market.', 'find the thesis.', 'cut through the noise.']}
+                      speed={58}
                       deleteSpeed={32}
-                      cursorChar="|"
-                      className="font-semibold"
+                      waitTime={2100}
+                      initialDelay={400}
+                      cursorChar="▍"
                       cursorClassName="ml-0.5"
                     />
                   </span>
@@ -197,27 +178,20 @@ export default function Home() {
 
                 <TickerInput onSubmit={handleSubmit} loading={loading} />
                 {error && !loading && <ErrorPanel message={error} />}
-                <div className="flex items-center justify-center mt-7">
-                  <Link
-                    href="/discover"
-                    className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full text-sm transition-all"
-                    style={{ background: 'var(--surface-2)', color: 'var(--text-2)', boxShadow: 'var(--shadow-sm)' }}
-                    onMouseEnter={e => { e.currentTarget.style.background = 'var(--surface-3)'; e.currentTarget.style.color = 'var(--text)' }}
-                    onMouseLeave={e => { e.currentTarget.style.background = 'var(--surface-2)'; e.currentTarget.style.color = 'var(--text-2)' }}
-                  >
-                    <span style={{ width: 6, height: 6, borderRadius: 999, background: 'var(--accent)', display: 'inline-block' }} />
-                    Discover stocks
-                  </Link>
-                </div>
               </ParticleIntro>
             )}
           </div>
 
-          <div className="px-6 pb-10">
-            <div className="max-w-5xl mx-auto">
-              <Disclaimer />
-            </div>
+          {/* Below-hero product story, CTA, and footer */}
+          <ProductStory />
+          <SignupCTA />
+
+          {/* Claude token easter egg sits just above the footer */}
+          <div className="px-6 pb-2">
+            <TokenCounter />
           </div>
+
+          <LandingFooter />
         </div>
       ) : (
         <motion.div
@@ -227,102 +201,100 @@ export default function Home() {
           transition={{ duration: 0.5 }}
           className="min-h-screen relative z-20"
         >
+          {/* Subtle premium smooth scroll, report page only */}
+          <SmoothScroll />
           <ReportAura />
 
-          {/* Compact sticky header */}
-          <header
-            className="sticky top-0 z-40 px-6 py-3.5"
-            style={{ background: 'rgba(7,7,9,0.86)', backdropFilter: 'blur(14px)', borderBottom: '1px solid var(--border)' }}
-          >
-            <div className="max-w-5xl mx-auto flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <button onClick={newSearch} aria-label="Stonky home, new search">
-                  <StonkyMark size={24} />
-                </button>
-                <span className="hidden sm:inline text-xs" style={{ color: 'var(--faint)' }}>
-                  A colder look at hot stocks.
-                </span>
-              </div>
-              <div className="flex items-center gap-5">
-                <Link
-                  href="/discover"
-                  className="text-xs transition-colors"
-                  style={{ color: 'var(--muted)' }}
-                  onMouseEnter={e => (e.currentTarget.style.color = 'var(--text-2)')}
-                  onMouseLeave={e => (e.currentTarget.style.color = 'var(--muted)')}
-                >
-                  Discover
-                </Link>
-                <button
-                  onClick={newSearch}
-                  className="text-xs transition-all"
-                  style={{ color: 'var(--muted)' }}
-                  onMouseEnter={e => (e.currentTarget.style.color = 'var(--text-2)')}
-                  onMouseLeave={e => (e.currentTarget.style.color = 'var(--muted)')}
-                >
-                  New search
-                </button>
-                <WatchlistControl onSelect={handleSubmit} />
-              </div>
-            </div>
-          </header>
+          {/* Shared floating glass navbar. Home resets to a fresh search so the
+              report's "new search" affordance lives in the same global nav. */}
+          <StonkyNav
+            active="home"
+            onHome={newSearch}
+            onOpenWatchlist={() => setWatchlistOpen(true)}
+            watchlistCount={watchlistItems.length}
+          />
+          <WatchlistControl open={watchlistOpen} onOpenChange={setWatchlistOpen} hideTrigger onSelect={handleSubmit} />
 
-          <main className="max-w-6xl mx-auto px-6 py-8 relative z-10">
+          {/* Top padding clears the floating pill navbar so it never overlaps the report */}
+          <main className="max-w-6xl mx-auto px-6 pt-28 pb-8 relative z-10">
             <TickerInput onSubmit={handleSubmit} loading={loading} compact />
             {loading && <TerminalLoader loading={loading} />}
             {error && !loading && <ErrorPanel message={error} />}
 
             {results && !loading && (
               <div ref={reportRef}>
-                {/* 1. Report hero: identity, score, both biases, cold take */}
-                <ScoreHero data={results} />
+                {/* The answer, alone. Everything below is opt-in.
+                    This page used to render ~1,200 words at once: chart,
+                    score anatomy, valuation model and all 23 metric rows,
+                    before stating a conclusion. */}
+                <Verdict data={results} />
 
                 {results.dataNote && (
-                  <p className="mt-4 text-xs leading-relaxed" style={{ color: 'var(--muted)', borderLeft: '2px solid var(--border-3)', paddingLeft: '0.9rem', maxWidth: 640 }}>
+                  <p className="mt-4 text-xs leading-relaxed" style={{ color: 'var(--muted)', paddingLeft: '0.2rem', maxWidth: 640 }}>
                     {results.dataNote}
                   </p>
                 )}
 
-                {/* 2. The Stock Cockpit: chart left, intelligence rail right */}
-                <section className="mt-12">
-                  <p className="eyebrow mb-5" style={{ color: 'var(--accent)' }}>Stock Cockpit</p>
-                  <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1.65fr)_minmax(0,1fr)] gap-6 items-start">
-                    <Reveal>
-                      {/* Left column: chart, candle read, then Score DNA fills
-                          the space beside the taller intelligence rail. The
-                          donut IS the score breakdown; no duplicate below. */}
-                      <CockpitChart
-                        ticker={results.ticker}
-                        data={results.chartData}
-                        chartRead={results.chartRead}
-                        hi52={results.chartRead.hi52Value}
-                        currency={results.currency}
-                      />
-                      <ScoreDNA data={results} />
-                      {/* Reading the Score fills the left column so its
-                          bottom lines up with Key Risks on the right */}
-                      <ScoreContext data={results} />
-                    </Reveal>
-                    <Reveal>
-                      <IntelligenceRail data={results} />
-                    </Reveal>
-                  </div>
-                </section>
+                {/* Layers, each labelled with what it holds and how much of
+                    it there is, so opening one is a decision. */}
+                <div className="mt-6 grid gap-3">
+                  <Disclosure
+                    title="Price and chart"
+                    summary="A year of price action, moving averages, and how it reads right now."
+                    count="252 days"
+                    tone="var(--info)"
+                  >
+                    <CockpitChart
+                      ticker={results.ticker}
+                      data={results.chartData}
+                      chartRead={results.chartRead}
+                      hi52={results.chartRead.hi52Value}
+                      currency={results.currency}
+                    />
+                  </Disclosure>
 
-                {/* 3. Valuation detail: fair value model, assumptions, comps */}
-                {results.valuationContext && (
-                  <Reveal><ValuationContext vc={results.valuationContext} /></Reveal>
-                )}
+                  <Disclosure
+                    title="How the score breaks down"
+                    summary="What each of the six categories contributed, and why."
+                    count={`${results.categoryScores.length} categories`}
+                    tone="var(--brand)"
+                  >
+                    <ScoreDNA data={results} />
+                    <ScoreContext data={results} />
+                  </Disclosure>
 
-                {/* 4. Evidence */}
-                <Reveal>
-                  <EvidenceTable
-                    metrics={results.metricEvidence}
-                    drivers={results.drivers}
-                    drags={results.drags}
-                    neutral={results.neutral}
-                  />
-                </Reveal>
+                  <Disclosure
+                    title="Thesis, moat and catalysts"
+                    summary="The long-term case, competitive position, and what could move it."
+                    tone="var(--violet)"
+                  >
+                    <IntelligenceRail data={results} />
+                  </Disclosure>
+
+                  {results.valuationContext && (
+                    <Disclosure
+                      title="Valuation detail"
+                      summary="Fair-value model, the assumptions behind it, and comparables."
+                      tone="var(--caut)"
+                    >
+                      <ValuationContext vc={results.valuationContext} />
+                    </Disclosure>
+                  )}
+
+                  <Disclosure
+                    title="Every metric, with the reasoning"
+                    summary="The full evidence table behind the score. For when you want to check the work."
+                    count={`${results.metricEvidence.length} metrics`}
+                    tone="var(--neg)"
+                  >
+                    <EvidenceTable
+                      metrics={results.metricEvidence}
+                      drivers={results.drivers}
+                      drags={results.drags}
+                      neutral={results.neutral}
+                    />
+                  </Disclosure>
+                </div>
 
                 <Disclaimer />
               </div>

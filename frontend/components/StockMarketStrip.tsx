@@ -82,9 +82,15 @@ export function StockMarketStrip({ onSelect }: { onSelect: (symbol: string) => v
               key={s.symbol}
               onClick={() => onSelect(s.symbol)}
               className="flex items-center gap-3 px-3.5 py-2.5 rounded-xl transition-all shrink-0"
-              style={{ background: 'var(--surface)', boxShadow: 'var(--shadow-sm)' }}
-              onMouseEnter={e => (e.currentTarget.style.background = 'var(--surface-3)')}
-              onMouseLeave={e => (e.currentTarget.style.background = 'var(--surface)')}
+              style={{
+                background: 'rgba(27,30,37,0.92)',
+                border: '1px solid var(--border-2)',
+                backdropFilter: 'blur(8px)',
+                WebkitBackdropFilter: 'blur(8px)',
+                boxShadow: '0 8px 22px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.04)',
+              }}
+              onMouseEnter={e => { e.currentTarget.style.background = 'rgba(38,42,51,0.96)'; e.currentTarget.style.borderColor = 'var(--border-3)' }}
+              onMouseLeave={e => { e.currentTarget.style.background = 'rgba(27,30,37,0.92)'; e.currentTarget.style.borderColor = 'var(--border-2)' }}
               aria-label={`Run the score for ${s.name}`}
             >
               <StockLogo symbol={s.symbol} size={34} radius={9} />
