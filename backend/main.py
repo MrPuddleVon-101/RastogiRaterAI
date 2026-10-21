@@ -10,6 +10,7 @@ Returns a structured JSON payload consumed by the Next.js frontend.
 from __future__ import annotations
 
 import math
+import os
 import sys
 import traceback
 from typing import Any, Dict, List, Optional
@@ -53,16 +54,24 @@ from insights import (
 
 app = FastAPI(title="Stonky API", version="1.0.0")
 
+# Local dev origins always work. For a hosted frontend, set ALLOWED_ORIGINS on
+# the server to a comma-separated list (e.g. "https://stonky.vercel.app").
+# Vercel preview/production subdomains are also allowed by pattern so a fresh
+# deploy never needs a backend change.
+_LOCAL_ORIGINS = [
+    "http://localhost:3000",
+    "http://localhost:3001",
+    "http://localhost:3002",
+    "http://127.0.0.1:3000",
+    "http://127.0.0.1:3001",
+    "http://127.0.0.1:3002",
+]
+_EXTRA_ORIGINS = [o.strip() for o in os.environ.get("ALLOWED_ORIGINS", "").split(",") if o.strip()]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000",
-        "http://localhost:3001",
-        "http://localhost:3002",
-        "http://127.0.0.1:3000",
-        "http://127.0.0.1:3001",
-        "http://127.0.0.1:3002",
-    ],
+    allow_origins=_LOCAL_ORIGINS + _EXTRA_ORIGINS,
+    allow_origin_regex=r"https://[a-z0-9-]+\.vercel\.app",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
